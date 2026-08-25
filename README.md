@@ -11,16 +11,17 @@ This project focuses on recreating a modern consumer-electronics website experie
 ## 🌐 Live Demo
 
 🔗 **Live Website:**  
-[View Live Demo](YOUR_GITHUB_PAGES_URL)
+[[View Live Demo](YOUR_GITHUB_PAGES_URL)](https://www.mivi.in/)
 
 🔗 **GitHub Repository:**  
-[View Source Code](YOUR_GITHUB_REPOSITORY_URL)
+[[View Source Code](YOUR_GITHUB_REPOSITORY_URL)](https://github.com/jeetpandya359/Mivi-Clone)
 
 ---
 
 ## 📸 Project Preview
 
-![Mivi Website Clone](screenshots/homepage.png)
+<img width="1914" height="953" alt="image" src="https://github.com/user-attachments/assets/f4627b96-23ff-4e0f-aacc-89eae2507e8f" />
+
 
 ---
 
