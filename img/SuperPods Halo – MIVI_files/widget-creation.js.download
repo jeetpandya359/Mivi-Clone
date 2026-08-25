@@ -1,0 +1,1571 @@
+var byId = function(id) {
+    return document.getElementById(id);
+}
+var zt_parent_domain;
+var signedup = false;
+var parentDomain;
+
+var privacyElement, platformType, customerData, thriveRefferalID, campaignPathname, commerceSignupUrl, commerceSignInUrl;
+var commerceLoginRequired = false;
+var updatePoints = false
+var updateReviews = false;
+var userConsent = false;
+
+var mailformat = /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/; // NO I18N
+
+// Create SDK method
+if (!byId('thrive_sdk_tag')) {
+    var connectionTag = document.createElement('script');
+    firstScriptTag = document.getElementsByTagName('script')[0];
+    connectionTag.src = 'js/thrivesdk.js';
+    connectionTag.id = "thrive_sdk_tag";
+    firstScriptTag.parentNode.insertBefore(connectionTag, firstScriptTag);
+}
+
+// Recieve message from parent page 
+window.addEventListener("message", recieveMessage, false);
+async function recieveMessage(event) {
+    if (event.data.messageType === 'zoho_commerce_CurrentPortalUser') {
+        identifyZohoCommerce(event.data);
+    } else if (event.data.messageType === 'wix_commerce_CurrentPortalUser') {
+        identifyWixCommerce(event.data);
+    } else if (event.data.messageType === 'trainer_central_CurrentPortalUser') {
+        identifyTrainerCentral(event.data);
+    } else if (event.data.messageType === 'custom_user_site_CurrentPortalUser') {
+        identifyCustomUserSite(event.data);
+    } else if (event.data.messageType === 'delete_Thrive_Cookie') {
+        deleteRefCookieInLocalStorage(event.data.widget_code);
+    } else if (event.data.reloadWidget) {
+        reloadWidget(event.data.userDetails);
+    } else if (event.data.type === 'ZTcookieConsent') {
+        parentDomain = event.data.domain;
+        var cookieConsent = await ecommerceServer.getCookieConsentSetting(event.data.thrivewidgetcode);
+        userConsent = false;
+        if (cookieConsent.code == 200) {
+            userConsent = cookieConsent.data.status === 'disable' ? false : true; // NO I18N
+            if (cookieConsent.data.privacy_policy_link) {
+                privacyHTML(cookieConsent.data.privacy_policy_link)
+            }
+        }
+        var data = {
+            type: "ZTCookieConsentResponse", // NO I18N
+            consentMessage: cookieConsent.data.ban_details,
+            privacyLink: cookieConsent.data.privacy_policy_link,
+            cookieConsent: userConsent
+        }
+        if (cookieConsent.data.privacy_policy_link) {
+            data.privacyHTML = privacyElement.outerHTML
+        }
+        postMessageToParent(data);
+    } else if (event.data.thrivewidgetcode) {
+        zt_parent_domain = event.currentTarget.location.origin + '/';
+        thriveWidgetCode = event.data.thrivewidgetcode;
+        parentDomain = event.data.domain;
+        platformType = event.data.thrive_platform;
+        hideThriveWidget = event.data.hideWidget;
+        campaignPathname = event.data.pathname;
+        if (event.data.cookieConsent !== null && event.data.cookieConsent !== undefined) {
+            setConsentCookieInLocalStorage(event.data.cookieConsent);
+            ZTsetRefID();
+        }
+        if (event.data.thrive_platform === 'shopify') {
+            if (!event.data.customer_data || event.data.customer_data.email == undefined) {
+                commerceLoginRequired = true;
+            } else if (event.data.customer_data != undefined && event.data.customer_data.email != undefined) {
+                customerData = event.data.customer_data;
+            }
+            if (event.data.customer_data.signUpPage != undefined && event.data.customer_data.signInPage != undefined) {
+                commerceSignupUrl = event.data.customer_data.signUpPage;
+                commerceSignInUrl = event.data.customer_data.signInPage;
+            }
+            getData = (await thrivePublicServer.identifyMember(thriveWidgetCode, customerData)).data;
+            if (getData && ('program_mapped_user' in getData) && getData.program_mapped_user) {
+                deleteRefCookieInLocalStorage(thriveWidgetCode);
+                postMessageToParent('deleteParentThriveCookie'); // NO I18N
+            }
+            initiatePage();
+        } else if (event.data.thrive_platform === 'zoho_commerce') {
+            // processZohoCommerce();
+            postMessageToParent('callZohoCommerceCurrentPortalUser'); // NO I18N
+        } else if (event.data.thrive_platform === 'custom_user_site') {
+            // processCustomUserSite();
+            postMessageToParent('callCustomUserSitePortalUser'); // NO I18N
+        } else if (event.data.thrive_platform === 'wix_commerce') {
+            postMessageToParent('callWixSitePortalUser'); // NO I18N
+        } else if (event.data.thrive_platform === 'trainer_central') {
+            postMessageToParent('callTrainerCentralPortalUser'); // NO I18N
+        }
+    }
+}
+
+async function reloadWidget (sendData) {
+    document.body.classList.add('widget-loading'); // NO I18N
+	document.querySelectorAll(".widget-container").forEach(el => el.remove()); // NO I18N
+	getData.member_auth_token = '';
+    getData = (await thrivePublicServer.identifyMember(thriveWidgetCode, sendData)).data;
+    document.body.classList.remove('widget-loading'); // NO I18N
+    commerceLoginRequired = (getData && getData.signed_up_user) ? !getData.signed_up_user : true;
+    initiatePage();
+}
+
+document.body.classList.add('widget-loading'); // no I18N
+
+var shareurl;
+var getData;
+// Get Page Content
+async function getContent() {
+    getData = (await thrivePublicServer.identifyMember(thriveWidgetCode, customerData)).data;
+    if (getData && ('program_mapped_user' in getData) && getData.program_mapped_user) {
+        deleteRefCookieInLocalStorage(thriveWidgetCode);
+        postMessageToParent('deleteParentThriveCookie'); // NO I18N
+    }
+    initiatePage();
+}
+
+// CREATING HTML ELEMENTS
+function createEle(ele, cls, id) {
+    var element = document.createElement(ele);
+    cls ? element.className += cls : '' // Add class
+    id ? element.setAttribute("id", id) : '' // Add id
+    return element;
+}
+
+// function processZohoCommerce () {
+// 	postMessageToParent('callZohoCommerceCurrentPortalUser'); // NO I18N
+// 	// window.parent.postMessage('callZohoCommerceCurrentPortalUser', parentDomain); // NO I18N
+// }
+
+// function processCustomUserSite () {
+// 	postMessageToParent('callCustomUserSitePortalUser'); // NO I18N
+// 	// window.parent.postMessage('callCustomUserSitePortalUser', parentDomain); // NO I18N
+// }
+
+function postMessageToParent(data) {
+    window.parent.postMessage(data, parentDomain);
+}
+
+// GETTING THRIVE DIGEST FROM ZOHO COMMERCE
+async function identifyZohoCommerce(dataOfZohoCommerce) {
+    if (dataOfZohoCommerce !== undefined && dataOfZohoCommerce.current_user !== undefined &&
+        dataOfZohoCommerce.current_user.emailid !== undefined && dataOfZohoCommerce.current_user.emailid != '') {
+        customerData = {};
+        customerData.email = dataOfZohoCommerce.current_user.emailid;
+        customerData.zt_customer_id = dataOfZohoCommerce.current_user.contact_id;
+        var userDetailAuth = (await thrivePublicServer.createThriveDigest(thriveWidgetCode, customerData)).data;
+        if (userDetailAuth !== undefined && userDetailAuth.generatehmac !== undefined) {
+            customerData.thrive_digest = userDetailAuth.generatehmac;
+        }
+    } else {
+        commerceSignupUrl = dataOfZohoCommerce.signUpPage;
+        commerceSignInUrl = dataOfZohoCommerce.signInPage;
+        commerceLoginRequired = true;
+    }
+    getData = (await thrivePublicServer.identifyMember(thriveWidgetCode, customerData)).data;
+    if (getData && ('program_mapped_user' in getData) && getData.program_mapped_user) {
+        deleteRefCookieInLocalStorage(thriveWidgetCode);
+        postMessageToParent('deleteParentThriveCookie'); // NO I18N
+    }
+    initiatePage();
+    // thrivePublicServer.identifyMember(thriveWidgetCode, JSON.stringify(customerData));
+}
+
+async function identifyTrainerCentral(dataOfTC) {
+    if (dataOfTC !== undefined && dataOfTC.isSignedIn && dataOfTC.userInfo !== undefined &&
+        dataOfTC.userInfo.userEmail !== undefined && dataOfTC.userInfo.userEmail != '') {
+        customerData = {};
+        customerData.email = dataOfTC.userInfo.userEmail;
+        customerData.zt_customer_id = dataOfTC.userInfo.userId;
+        var userDetailAuth = (await thrivePublicServer.createThriveDigest(thriveWidgetCode, customerData)).data;
+        if (userDetailAuth !== undefined && userDetailAuth.generatehmac !== undefined) {
+            customerData.thrive_digest = userDetailAuth.generatehmac;
+        }
+    } else {
+        commerceSignupUrl = dataOfTC.signUpPage;
+        commerceSignInUrl = dataOfTC.signInPage;
+        commerceLoginRequired = true;
+    }
+    getData = (await thrivePublicServer.identifyMember(thriveWidgetCode, customerData)).data;
+    if (getData && ('program_mapped_user' in getData) && getData.program_mapped_user) {
+        deleteRefCookieInLocalStorage(thriveWidgetCode);
+        postMessageToParent('deleteParentThriveCookie'); // NO I18N
+    }
+    initiatePage();
+    // thrivePublicServer.identifyMember(thriveWidgetCode, JSON.stringify(customerData));
+}
+
+async function identifyWixCommerce(dataOfZohoCommerce) {
+    if (dataOfZohoCommerce !== undefined && dataOfZohoCommerce.member !== undefined &&
+        dataOfZohoCommerce.member.id !== undefined && dataOfZohoCommerce.signedToken !== undefined) {
+        customerData = {};
+        customerData.zt_customer_id = dataOfZohoCommerce.signedToken;
+    } else {
+        commerceSignupUrl = dataOfZohoCommerce.signUpPage;
+        commerceSignInUrl = dataOfZohoCommerce.signInPage;
+        commerceLoginRequired = true;
+    }
+    getData = (await thrivePublicServer.identifyMember(thriveWidgetCode, customerData)).data;
+    if (getData && ('program_mapped_user' in getData) && getData.program_mapped_user) {
+        deleteRefCookieInLocalStorage(thriveWidgetCode);
+        postMessageToParent('deleteParentThriveCookie'); // NO I18N
+    }
+    initiatePage();
+    // thrivePublicServer.identifyMember(thriveWidgetCode, JSON.stringify(customerData));
+}
+
+async function identifyCustomUserSite(dataOfCustomSite) {
+    if (dataOfCustomSite !== undefined && dataOfCustomSite.za_email_id !== undefined &&
+        dataOfCustomSite.user_unique_id !== undefined && dataOfCustomSite.za_email_id != '' && dataOfCustomSite.user_unique_id != '') {
+        customerData = {};
+        customerData.email = dataOfCustomSite.za_email_id;
+        customerData.zt_customer_id = dataOfCustomSite.user_unique_id;
+        customerData.thrive_digest = dataOfCustomSite.thrive_digest;
+    } else {
+        commerceSignupUrl = dataOfCustomSite.signUpPage;
+        commerceSignInUrl = dataOfCustomSite.signInPage;
+        commerceLoginRequired = true;
+    }
+    getData = (await thrivePublicServer.identifyMember(thriveWidgetCode, customerData)).data;
+    if (getData && ('program_mapped_user' in getData) && getData.program_mapped_user) {
+        deleteRefCookieInLocalStorage(thriveWidgetCode);
+        postMessageToParent('deleteParentThriveCookie'); // NO I18N
+    }
+    initiatePage();
+    // thrivePublicServer.identifyMember(thriveWidgetCode, JSON.stringify(customerData));
+}
+
+async function checkLoginProcessingRequired() {
+    var loginHash = getUrlParameter('loginhash'); // NO I18N
+    if (loginHash !== undefined && loginHash !== null && loginHash !== '') {
+        var loginCheck = 'publicapi/' + thriveWidgetCode + '/login/' + loginHash; // NO I18N
+        await httpRequest('GET', loginCheck); // NO I18N
+    }
+    return;
+}
+
+function isProgramActive(statusToCheck) {
+    return statusToCheck === 'active' ? true : false; // NO I18N
+}
+
+function initiatePage() {
+    var widgetBlockStatus = false;
+    if (getData) {
+        var memberBlockStatus = getData.is_member_blocked;
+        if (memberBlockStatus || !(isProgramActive(getData.loyalty_status) || isProgramActive(getData.review_status)) || (getData.error_code && (getData.error_code === 100020 || getData.error_code === 100060))) {
+            widgetBlockStatus = true;
+        }
+    }
+    getData.page_preference_details.widgetBlockingStatus = widgetBlockStatus;
+    var themeData = getData.page_preference_details;
+    if (themeData && themeData.theme_color) {
+        document.documentElement.style.setProperty('--themeColor', themeData.theme_color); // NO I18N
+    }
+    themeData.messageFrom = 'Thrive'; // NO I18N
+    postMessageToParent(themeData);
+    if (getData !== undefined && getData.error_code !== undefined && getData.error_code === 100040) {
+        document.body.innerHTML = '<p class="program-inactive-frame">Program is not active!</p>';
+    } else {
+        signedup = getData.signed_up_user;
+        shareurl = getData.user_share_url ? getData.user_share_url : '';
+        if (updateReviews) {
+            reviewsListing(getData);
+            updateReviews = false;
+            byId('bannerPoints').innerHTML = getData.points_details.earned_points; // NO I18N
+        } else if (updatePoints) {
+            loadTaskAndReward();
+            updatePoints = false;
+        } else if (!hideThriveWidget) {
+            createHTML();
+        }
+    }
+}
+
+function closeButtonCreate(closeItem) {
+    var modalClose = createEle('div', 'modal-close'); // no I18N
+    document.getElementsByClassName('tr-wrapper')[0].innerHTML = ''; // no I18N
+    modalClose.addEventListener('click', closeModal.bind(null, closeItem, '')); // no I18N
+    return modalClose;
+}
+
+var programsDetails = {
+    loyalty_status: {
+        key: 'points', // no I18N
+        title: 'Points', // no I18N
+        tabs: ['Ways to Earn'], // no I18N
+        description: ''
+    },
+    review_status: {
+        key: 'review', // no I18N
+        title: 'Reviews', // no I18N
+        tabs: ['Ways to Share'], // no I18N
+        description: ''
+    },
+    multitask_status: {
+        key: 'activity', // no I18N
+        title: 'Activity', // no I18N
+        tabs: ['Ways to earn'], // no I18N
+        description: ''
+    },
+    vip_loyalty_status: {
+        key: 'vip', // no I18N
+        title: 'VIP', // no I18N
+        tabs: [],
+        description: 'Your all access pass to exclusive rewards. Reach higher tiers for more exclusive perks' // no I18N
+    }
+}
+
+async function createHTML() {
+    /*if (!updatePoints) {*/
+    var content = getData;
+    var container = createEle('div', 'widget-container', 'widgetContainer'); // no I18N
+    container.style = 'font-family: ' + content.page_preference_details.font_family; // no I18N
+    var firstPage = createEle('div', 'widget-first-page'); // no I18N
+    // BANNER SECTION
+    var banner = createEle('div', 'widget-banner'); // no I18N
+    banner.style.background = content.page_preference_details.theme_color;
+    var bannerTxt = createEle('div', 'banner-txt'); // no I18N
+    var bannerSpan = createEle('span'); // no I18N
+    bannerSpan.id = "bannerPoints";
+    bannerSpan.innerHTML = content.signed_up_user ? getData.points_details.earned_points : content.page_preference_details.program_name;
+    bannerTxt.innerHTML = content.signed_up_user ? 'Available points' : 'Welcome to'; // no I18N
+    bannerTxt.append(bannerSpan);
+    banner.append(bannerTxt);
+    if (getData.signed_up_user) {
+        var redeemBtn = createEle('div', 'redeem-btn'); // no I18N
+        redeemBtn.innerHTML = 'Redeem'; // no I18N
+        redeemBtn.addEventListener('click', openSection.bind(null, 'reward', ''))
+        banner.append(redeemBtn);
+    }
+    firstPage.append(banner);
+
+    // CONTENT SECTION
+    var sectionsDiv = createEle('div', 'widget-content-section'); // no I18N
+    if (commerceLoginRequired || (!commerceLoginRequired && (content.opt_in_required !== undefined && content.opt_in_required))) {
+        // JOIN SECTION
+        var joinSection = createEle('div', 'widget-section'); // no I18N
+        joinSection.id = 'joinSection';
+        var joinTitle = createEle('h2'); // no I18N
+        joinTitle.innerHTML = content.page_preference_details.page_heading;
+        var joinDescription = createEle('p'); // no I18N
+        joinDescription.innerHTML = content.page_preference_details.page_description;
+        var joinButton = createEle('div', 'btn-style'); // no I18N
+        joinButton.style.background = content.page_preference_details.theme_color;
+        joinButton.setAttribute('id', 'join-campaign-btn');
+        if (commerceLoginRequired) {
+            joinButton.innerHTML = 'Signup'; // no I18N
+            joinButton.addEventListener('click', redirectToCommerceSignup);
+        } else {
+            joinButton.innerHTML = content.page_preference_details.button_text;
+            if (userConsent === true) {
+                joinButton.addEventListener('click', confirmCookieBeforeOptin);
+            } else {
+                joinButton.addEventListener('click', joinCampaign);
+            }
+        }
+
+        var alreadyHaveAccount = createEle('div', 'mT10'); // no I18N
+        if (commerceLoginRequired) {
+            var signSpanButton = createEle('span', 'anchor-text'); // no I18N
+            signSpanButton.innerHTML = 'Sign in'; // no I18N
+            signSpanButton.addEventListener('click', redirectToCommerceSignIn);
+            alreadyHaveAccount.innerHTML = 'Already have an account? '; // no I18N
+            alreadyHaveAccount.append(signSpanButton);
+        }
+        joinSection.append(joinTitle, joinDescription, joinButton, alreadyHaveAccount);
+        // PRIVACY POLICY
+        if (content.page_preference_details.privacy_policy_link) {
+            var privacyDiv = createEle('div'); // no I18N
+            privacyDiv.append(privacyElement);
+            joinSection.append(privacyDiv);
+        }
+        sectionsDiv.append(joinSection)
+    }
+
+    var programKeys = Object.keys(programsDetails);
+    for (var program = 0; program < programKeys.length; program++) {
+        var activeProgram = programKeys[program];
+        if (getData[activeProgram] === 'active' && tasksNotEmpty(activeProgram)) {
+            programsDetails[activeProgram].description = programsDetails[activeProgram].description ? programsDetails[activeProgram].description : getData.page_preference_details[programsDetails[activeProgram].key + '_description']
+            programsDetails[activeProgram].tabs = activeProgram === 'vip_loyalty_status' ? getData.vip_program_details.tier_levels_data : programsDetails[activeProgram].tabs; // no I18N
+            var programBox = createWhiteBox(programsDetails[activeProgram]);
+            sectionsDiv.append(programBox);
+        }
+    }
+
+    if (content.signed_up_user) {
+        // YOUR REWARDS
+        var yourRewards = createEle('div', 'widget-section'); // no I18N
+        yourRewards.id = 'yourRewards'; // no I18N
+        yourRewards.addEventListener('click', openTransactionsList);
+        var rewardsActivity = createEle('div', 'rewards-activity'); // no I18N
+        rewardsActivity.innerHTML = 'Points activity history'; // no I18N
+        yourRewards.append(rewardsActivity);
+        sectionsDiv.append(yourRewards);
+
+        // TRANSACTION LISTING
+        var transactionsWrapper = createEle('div', 'transactions-view-section pop-frame'); // no I18N
+        var transactionsContainer = createEle('div', 'transactions-wrapper pop-wrapper'); // no I18N
+        transactionsWrapper.append(transactionsContainer);
+        //transactionsListing();
+        var optOutSection = createEle('div', 'widget-section'); // no I18N
+        optOutSection.id = 'optOutBox'; // no I18N
+        optOutSection.addEventListener('click', optOutConfirmation);
+        var optOut = createEle('div', 'optout-box'); // no I18N
+        optOut.innerHTML = 'Opt-out from this program'; // no I18N
+        optOutSection.append(optOut);
+        sectionsDiv.append(optOutSection);
+    }
+
+    // TASK VIEW SECTION
+    var viewSection = createEle('div', 'tr-view-section pop-frame'); // no I18N
+    var viewWrapper = createEle('div', 'tr-wrapper pop-wrapper'); // no I18N
+    viewSection.append(viewWrapper);
+
+    firstPage.append(sectionsDiv);
+    container.append(firstPage, viewSection, transactionsWrapper ? transactionsWrapper : '');
+
+    // POWERED BY THRIVE
+    if (getData.whitelabel_details !== undefined && getData.whitelabel_details.powered_by_display !== undefined &&
+        getData.whitelabel_details.powered_by_display === 'show') { // no I18N
+        var poweredBox = createEle('div', 'powered-box'); // no I18N
+        poweredBox.innerHTML = 'Powered by <i></i> Thrive'; // no I18N
+        document.body.append(container, poweredBox);
+        byId('widgetContainer').classList.add('powered-by-added'); // no I18N  
+    } else {
+        document.body.append(container);
+    }
+    setTimeout(function() {
+        document.body.classList.remove('widget-loading');  // no I18N  
+    }, 100);
+}
+
+function tasksNotEmpty(program) {
+    var status = true;
+    if (program === 'review_status' && getData.review_criterias && !Object.keys(getData.review_criterias).length) {
+        status = false;
+    }
+    return status;
+}
+
+function optOutConfirmation() {
+    var popupContent = createEle('div'); // no I18N
+    var heading = createEle('h2', 'popup-head'); // no I18N
+    heading.innerHTML = 'Opt-out from this program'; // no I18N
+    var description = createEle('div'); // no I18N
+    description.innerHTML = "You'll no longer be considered a part of this program, and all your actions prior to this will be put on hold until you opt back in. <br><br> <span class='note-txt'><strong>Note:</strong> While you are gone, your activity records will be maintained securely. You can send us a request email if you want it removed permanently.</span>"; // no I18N
+    var closeButton = createEle('div'); // no I18N
+    closeButton.setAttribute('class', 'btn-style red-btn mT20');
+    closeButton.setAttribute('id', 'opt-out-btn');
+    closeButton.innerHTML = 'Opt-out'; // no I18N
+    closeButton.addEventListener('click', optOutConfirm);
+    popupContent.append(heading, description, closeButton);
+    createModalOverlay(popupContent);
+}
+
+async function optOutConfirm() {
+    byId('opt-out-btn').classList.add('btn-loading'); // no I18N
+    var optResp = await httpRequest('POST', 'widget/' + thriveWidgetCode + '/campoptout', ); // no I18N
+    byId('opt-out-btn').classList.remove('btn-loading'); // no I18N
+    if (optResp.status === 200) {
+        document.body.innerHTML = '';
+        showAnnouncement('Opted-out successfully!', 'success'); // no I18N
+        getData = null;
+        getContent();
+    }
+}
+
+function privacyHTML(link) {
+    privacyElement = createEle('div', 'anchor-text'); // no I18N
+    privacyElement.innerHTML = 'Privacy policy'; // no I18N
+    privacyElement.addEventListener('click', openNewWindow.bind(null, link, ''));
+    // privacyElement.setAttribute('href', link); // no I18N
+    // privacyElement.setAttribute('target', '_blank'); // no I18N
+}
+
+function openTransactionsList() {
+    transactionsListing()
+    document.getElementsByClassName('transactions-view-section')[0].classList.add('active'); // no I18N
+}
+
+async function transactionsListing() {
+    dataLoading = true;
+    loadMore = true;
+    var APIUrl = loadMoreCount > 0 ? 'widget/' + thriveWidgetCode + '/fetchtransactions/' + loadMoreCount : 'widget/' + thriveWidgetCode + '/fetchtransactions'; // no I18N
+    var getTransactionsData = await httpRequest('GET', APIUrl); // no I18N
+    if (getTransactionsData.data.transactions.length < 10) {
+        loadMore = false
+    }
+    dataLoading = false;
+    var transactionsData = getTransactionsData.data.transactions;
+    var listingUl = createEle('ul', 'transaction-listing'); // no I18N
+    if (loadMoreCount <= 0) {
+        var popHeader = createEle('div', 'pop-header'); // no I18N
+        var header = createEle('h3'); // no I18N
+        header.innerHTML = 'Points activity history'; // no I18N
+        popHeader.append(header);
+        var containerDiv = createEle('div', 'transaction-container'); // no I18N
+        containerDiv.append(popHeader, listingUl);
+        document.getElementsByClassName('transactions-wrapper')[0].append(closeButtonCreate('transaction'), containerDiv); // no I18N
+        document.getElementsByClassName('transactions-wrapper')[0].addEventListener('scroll', loadMoreTransaction); // no I18N
+    }
+    createTransactionItems(transactionsData);
+}
+
+function createTransactionItems(data) {
+    for (var list = 0; list < data.length; list++) {
+        var listLi = createEle('li'); // no I18N
+        var listReason = createEle('div', 'earned-reason'); // no I18N
+        listReason.innerHTML = data[list].description;
+        var earnedDate = createEle('span', 'earned-date'); // no I18N
+        earnedDate.innerHTML = returnDate(data[list].transaction_date);
+        listReason.append(earnedDate);
+        var listPoints = createEle('div', 'earned-points'); // no I18N
+        var points = data[list].earned_points > 0 ? '+' + data[list].earned_points : (listPoints.classList.add('redeemed'), data[list].earned_points);
+        listPoints.innerHTML = points;
+        listLi.append(listReason, listPoints);
+        document.getElementsByClassName('transaction-listing')[0].append(listLi);
+    }
+}
+
+function loadMoreTransaction() {
+    var wrapper = document.getElementsByClassName('transactions-wrapper')[0];
+    var containerHeight = document.getElementsByClassName('transaction-container')[0].clientHeight;
+    var scrolltop = wrapper.scrollTop;
+    var wrapperHeight = wrapper.clientHeight;
+    if (scrolltop >= (containerHeight - wrapperHeight)) {
+        loadMoreData();
+    }
+}
+
+var loadMoreCount = 0,
+    dataLoading = false,
+    loadMore = false;
+
+function loadMoreData() {
+    if (loadMore && !dataLoading) {
+        loadMoreCount++;
+        transactionsListing();
+    }
+}
+
+function returnDate(millis) {
+    var date = new Date(parseInt(millis));
+    date = date.toDateString();
+    date = date.slice(4);
+    return date;
+}
+
+var headerTitles = {
+    criteria: 'Ways to earn', // no I18N
+    reward: 'Ways to redeem', // no I18N
+    reviews: 'Ways to review', // no I18N
+    activity: 'Ways to earn' // no I18N
+}
+
+function createWhiteBox(data) {
+    var boxContainer = createEle('div', 'widget-section'); // no I18N
+    if (getData.signed_up_user && data.key === 'vip') {
+        var currentTierDetails = tierCalculation();
+        var currentTierContainer = createEle('div', 'current-tier-container'); // no I18N
+        var currentTierName = createEle('h3'); // no I18N
+        currentTierName.addEventListener('click', openSection.bind(null, 'vip-' + currentTierDetails.tierArrayPos, ''));
+        currentTierName.innerHTML = currentTierDetails.currentTier;
+        var pointsToMoveNextTier = createEle('p'); // no I18N
+        if (currentTierDetails.tierPercentage === 100) {
+            pointsToMoveNextTier.innerHTML = "Hooray! You've made it to the highest tier!"; // no I18N
+        } else {
+            pointsToMoveNextTier.innerHTML = getData.vip_program_details.tier_settings.tier_value_based_on === 'purchase_value' // no I18N
+                ?
+                'You are ' + getData.store_currency.symbol + currentTierDetails.valueForNextTier + ' away from reaching ' + currentTierDetails.nextTier // no I18N
+                :
+                'You are ' + currentTierDetails.valueForNextTier + ' points away from reaching ' + currentTierDetails.nextTier; // no I18N
+        }
+        var percentageLine = createEle('div', 'tier-percentage-line'); // no I18N
+        var completedPercentage = createEle('span', 'completed-percentage-line'); // no I18N
+        completedPercentage.style.width = currentTierDetails.tierPercentage + '%'; // no I18N
+        completedPercentage.style.background = getData.page_preference_details.theme_color;
+        percentageLine.append(completedPercentage);
+        currentTierContainer.append(currentTierName, pointsToMoveNextTier, percentageLine);
+        boxContainer.append(currentTierContainer);
+    } else {
+        var title = createEle('h2'); // no I18N
+        title.innerHTML = data.title;
+        boxContainer.append(title);
+    }
+    var boxDescription = createEle('p'); // no I18N
+    var tabsContainer = createEle('div', 'tr-tabs-container'); // no I18N
+    tabsContainer.classList.add(data.key);
+    boxDescription.innerHTML = data.description;
+    var tabsUl = createEle('ul'); // no I18N
+    for (var tab = 0; tab < data.tabs.length; tab++) {
+        var tabItem = createEle('li'); // no I18N
+        var tabKey = data.key === 'vip' ? 'vip-' + tab : data.key; // no I18N
+        tabItem.setAttribute('tr-item', tabKey); // no I18N
+        tabItem.addEventListener('click', openSection.bind(null, tabKey, ''));
+        if (data.key === 'vip') {
+            var tierSpan = createEle('span'); // no I18N
+            tierSpan.innerHTML = data.tabs[tab].tier_name;
+            tabItem.append(tierSpan);
+            if (getData.signed_up_user && currentTierDetails.currentTier === data.tabs[tab].tier_name) {
+                tabItem.style.background = getData.page_preference_details.theme_color + '30';
+            }
+            if (tab == 0) {
+                tabItem.innerHTML += 'You begin here'; // no I18N 
+            } else {
+                tabItem.innerHTML += getData.vip_program_details.tier_settings.tier_value_based_on === 'purchase_value' // no I18N
+                    ?
+                    'Spend ' + getData.store_currency.symbol + data.tabs[tab].tier_value_to_enter :
+                    'Earn ' + data.tabs[tab].tier_value_to_enter + ' points'; // no I18N 
+            }
+        } else {
+            tabItem.innerHTML = data.tabs[0];
+        }
+        tabsUl.append(tabItem);
+    }
+    tabsContainer.append(tabsUl);
+    boxContainer.append(boxDescription, tabsContainer);
+    return boxContainer;
+}
+
+function tierCalculation(data) {
+    var val = getData.vip_program_details.tier_settings.tier_value_based_on === 'purchase_value' ? getData.total_purchase_val : getData.points_details.total_points; // no I18N
+    var allTiers = getData.vip_program_details.tier_levels_data;
+    var currentTierDetails = {
+        currentTier: '',
+        tierPercentage: '',
+        valueForNextTier: '',
+        nextTier: '',
+        tierArrayPos: ''
+    }
+    for (var tier = 0; tier < allTiers.length; tier++) {
+        if (val < allTiers[tier].tier_value_to_enter) {
+            if (val < 0) {
+                currentTierDetails.currentTier = allTiers[tier].tier_name;
+                currentTierDetails.tierPercentage = 0;
+                currentTierDetails.valueForNextTier = allTiers[tier + 1].tier_value_to_enter - (val);
+                currentTierDetails.nextTier = allTiers[tier + 1].tier_name;
+                currentTierDetails.tierArrayPos = tier;
+            } else {
+                currentTierDetails.currentTier = allTiers[tier - 1].tier_name;
+                currentTierDetails.tierPercentage = val * 100 / allTiers[tier].tier_value_to_enter;
+                currentTierDetails.valueForNextTier = allTiers[tier].tier_value_to_enter - val;
+                currentTierDetails.nextTier = allTiers[tier].tier_name;
+                currentTierDetails.tierArrayPos = tier - 1;
+            }
+            break;
+        } else {
+            currentTierDetails.currentTier = allTiers[allTiers.length - 1].tier_name;
+            currentTierDetails.tierPercentage = 100;
+            currentTierDetails.valueForNextTier = 0;
+            currentTierDetails.tierArrayPos = allTiers.length - 1;
+        }
+    }
+    return currentTierDetails;
+}
+
+var reviewTasks = ['capterra_review_activity', 'getapp_review_activity', 'producthunt_review_activity', 'trustpilot_review_activity', 'google_review_activity']; // no I18N
+
+var reviewBrandNames = {
+    capterra_review_activity: 'Capterra', // no I18N
+    getapp_review_activity: 'GetApp', // no I18N
+    trustpilot_review_activity: 'Trustpilot', // no I18N
+    producthunt_review_activity: 'ProductHunt', // no I18N
+    nps_activity: 'Net Promoter Score', // no I18N
+    testimonial_activity: 'Customer Testimonial', // no I18N
+    google_review_activity: 'Google' // no I18N
+}
+
+var taskDetail = {
+    selected_task: '',
+    input_value: '',
+    criteria_config_id: ''
+}
+
+var selectedReviewBox;
+
+function reviewsListing(data) {
+    var allTasks = createEle('div', 'all-tasks-box'); // no I18N
+    var objKeys = Object.keys(data.review_criterias);
+    var completedReviews = createEle('div', 'completed-todo-box'); // no I18N
+    var completedHeading = createEle('h4'); // no I18N
+    completedHeading.innerHTML = 'Completed reviews'; // no I18N
+    completedReviews.append(completedHeading);
+    var completedTaskList = false;
+    for (var i = 0; i < objKeys.length; i++) {
+        var item = data.review_criterias[objKeys[i]];
+        var taskKey = Object.keys(item.user_criterias_detail.criterias)[0];
+        var rewardKey = Object.keys(item.user_rewards_detail.rewards)[0];
+        var reviewBox = createEle('div', 'todo-box'); // no I18N
+        reviewBox.setAttribute('box-item', i);
+        var rewardName = createEle('h4', 'reward-head'); // no I18N
+        rewardName.setAttribute('reward-type', rewardKey)
+        var taskName = createEle('div', 'review-task'); // no I18N
+        taskName.setAttribute('task-name', taskKey);
+        rewardName.innerHTML = item.reward_config_name;
+        taskName.innerHTML = reviewTasks.indexOf(taskKey) > -1 ? 'Review on ' + reviewBrandNames[taskKey] : reviewBrandNames[taskKey];
+        if (getData.signed_up_user) {
+            if (data.members_criteria_reward_json[objKeys[i]].criterias[taskKey].status === 'not_completed') {
+                taskName.addEventListener('click', initiateReviewTask.bind(null, i, taskKey, item, data.page_preference_details.theme_color, ''));
+            }
+            if (data.members_criteria_reward_json[objKeys[i]].criterias[taskKey].status === 'admin_approval') {
+                reviewBox.setAttribute('review-completed', true);
+                var approvalInfo = createEle('div', 'review-pending-info'); // no I18N
+                approvalInfo.innerHTML = 'Pending for approval'; // no I18N
+                reviewBox.append(approvalInfo);
+            }
+        }
+        reviewBox.prepend(rewardName, taskName)
+        if (data.members_criteria_reward_json[objKeys[i]].criterias && (data.members_criteria_reward_json[objKeys[i]].criterias[taskKey].status === 'completed' || data.members_criteria_reward_json[objKeys[i]].criterias[taskKey].status === 'admin_approval')) {
+            completedTaskList = true;
+            completedReviews.append(reviewBox);
+        } else {
+            allTasks.append(reviewBox);
+        }
+    }
+    var popHeader = createEle('div', 'pop-header'); // no I18N
+    var reviewsHeader = createEle('h3'); // no I18N
+    reviewsHeader.innerHTML = 'Review and earn'; // no I18N
+    popHeader.append(reviewsHeader);
+    var overlay = createEle('div', 'pop-overlay'); // no I18N
+    document.getElementsByClassName('tr-wrapper')[0].append(closeButtonCreate(), popHeader, allTasks, overlay);
+    if (completedTaskList) {
+        document.getElementsByClassName('tr-wrapper')[0].append(completedReviews);
+    }
+}
+
+function multiCriteriaListing(data) {
+    var multiCriteriaContainer = createEle('div', 'multi-criteria-container'); // no I18N
+    var popHeader = createEle('div', 'pop-header'); // no I18N
+    var containerHead = createEle('h3'); // no I18N
+    containerHead.innerHTML = 'Activity'; // no I18N
+    popHeader.append(containerHead);
+    var multiCriteriaData = data.multitask_criterias;
+    var multiCriteriaKeys = Object.keys(multiCriteriaData);
+    for (var item = 0; item < multiCriteriaKeys.length; item++) {
+        var parentGroup = multiCriteriaData[multiCriteriaKeys[item]];
+        var taskBox = createEle('div', 'todo-box'); // no I18N
+        var taskList = parentGroup.user_criterias_detail.criterias;
+        var rewardHead = createEle('h4', 'reward-head'); // no I18N
+        var rewardType = Object.keys(parentGroup.user_rewards_detail.rewards)[0];
+        rewardHead.setAttribute('reward-type', rewardType);
+        rewardHead.innerHTML = parentGroup.reward_config_name;
+        var taskUl = createEle('ul', 'todo-list'); // no I18N
+        for (var childItem = 0; childItem < taskList.length; childItem++) {
+            var taskItem = taskList[childItem];
+            var taskLi = createEle('li'); // no I18N
+            taskLi.setAttribute('task-type', 'custom_activity_tracker');
+            taskLi.innerHTML = taskItem.custom_activity_tracker.name;
+            taskUl.append(taskLi);
+        }
+        taskBox.append(rewardHead, taskUl);
+        multiCriteriaContainer.append(taskBox);
+    }
+    document.getElementsByClassName('tr-wrapper')[0].append(closeButtonCreate(), popHeader, multiCriteriaContainer); // no I18N
+}
+
+function tierBenefitsListing(tab, data) {
+    var selectedBenefit = tab.split('-')[1];
+    var benefitsWrapper = createEle('div', 'benefits-wrapper'); // no I18N
+    var popHeader = createEle('div', 'pop-header'); // no I18N
+    var benefitsHead = createEle('h3'); // no I18N
+    benefitsHead.innerHTML = data.vip_program_details.tier_levels_data[selectedBenefit].tier_name;
+    var selectedTierPoints = createEle('p'); // no I18N
+    if (data.vip_program_details.tier_levels_data[selectedBenefit].tier_value_to_enter == 0) {
+        selectedTierPoints.innerHTML += 'You begin here'; // NO I18N
+    } else {
+        selectedTierPoints.innerHTML = getData.vip_program_details.tier_settings.tier_value_based_on === 'purchase_value' // no I18N
+            ?
+            'Spend ' + getData.store_currency.symbol + data.vip_program_details.tier_levels_data[selectedBenefit].tier_value_to_enter :
+            'Earn ' + data.vip_program_details.tier_levels_data[selectedBenefit].tier_value_to_enter + ' Points'; // no I18N
+    }
+    popHeader.append(benefitsHead, selectedTierPoints);
+    var benefitsList = createEle('ul', 'benefits-listing'); // no I18N
+    var selectedBenefitItem = data.vip_program_details.tier_levels_data[selectedBenefit].tier_perks;
+    for (var benefit = 0; benefit < selectedBenefitItem.length; benefit++) {
+        var benefitItem = createEle('li'); // no I18N
+        benefitItem.innerHTML = selectedBenefitItem[benefit];
+        benefitsList.append(benefitItem);
+    }
+    benefitsWrapper.append(popHeader, benefitsList);
+    document.getElementsByClassName('tr-wrapper')[0].append(closeButtonCreate(), benefitsWrapper); // no I18N
+}
+
+function initiateReviewTask(listing, task, data, themeColor) {
+    selectedReviewBox = listing
+    var secondaryModalCloseBtn = createEle('div', 'secondary-modal-close'); // no I18N
+    secondaryModalCloseBtn.addEventListener('click', secondaryModalClose);
+    var taskInputsContainer = createEle('div', 'task-inputs-container'); // no I18N
+    taskInputsContainer.setAttribute('selected-task', task);
+    taskInputsContainer.append(secondaryModalCloseBtn);
+    taskDetail.selected_task = task; // Selected task
+    taskDetail.criteria_config_id = data.criteria_config_id; // Criteria config id
+    // HEADER
+    var modalTaskHeader = createEle('h3', 'modal-task-head'); // no I18N
+    modalTaskHeader.innerHTML = reviewTasks.indexOf(task) > -1 ? 'Review on ' + reviewBrandNames[task] : reviewBrandNames[task];
+    // SUBMIT BUTTON
+    var submitBtn = createEle('div', 'btn-style primary-btn mT20'); // no I18N
+    submitBtn.setAttribute('id', 'task-submit-btn');
+    submitBtn.innerHTML = 'Submit'; // no I18N
+    submitBtn.style.background = themeColor;
+    if (task === 'nps_activity') {
+        var modalTaskQuest = createEle('p', 'modal-task-quest'); // no I18N
+        modalTaskQuest.innerHTML = data.user_criterias_detail.criterias[task].question;
+        var npsNumbers = createEle('ul', 'clearfix nps-numbers-ul'); // no I18N
+        for (var number = 1; number < 11; number++) {
+            var numberEle = createEle('li', 'nps-number-item'); // no I18N
+            numberEle.setAttribute('nps-number', number);
+            numberEle.setAttribute('id', 'review-value');
+            numberEle.innerHTML = number;
+            numberEle.addEventListener('click', npsRatingClick.bind(null, numberEle, ''));
+            npsNumbers.append(numberEle);
+        }
+        submitBtn.classList.add('inactive'); // no I18N
+        taskInputsContainer.append(modalTaskHeader, modalTaskQuest, npsNumbers, submitBtn);
+    } else if (task === 'testimonial_activity') {
+        var testimonialQuestion = createEle('h4'); // no I18N
+        testimonialQuestion.innerHTML = data.user_criterias_detail.criterias[task].question;
+        var testimonialInput = createEle('textarea', 'input-style'); // no I18N
+        testimonialInput.setAttribute('id', 'review-value');
+        testimonialInput.setAttribute('placeholder', 'Type something');
+        submitBtn.addEventListener('click', completeReviewTask);
+        taskInputsContainer.append(modalTaskHeader, testimonialQuestion, testimonialInput, submitBtn);
+    } else {
+        var freshReviewContainer = createEle('div', 'go-review-container clearfix'); // no I18N
+        var goReviewBtn = createEle('div', 'btn-style'); // no I18N
+        goReviewBtn.addEventListener('click', function() {
+            openNewWindow(data.user_criterias_detail.criterias[task].site_url)
+        });
+        goReviewBtn.innerHTML = 'Click to Review'; // no I18N
+        goReviewBtn.style.background = getData.page_preference_details.theme_color;
+        var copyBtn = createEle('div', 'review-url-copy'); // no I18N
+        copyBtn.innerHTML = 'Copied!'; // no I18N
+        copyBtn.addEventListener('click', function(event) {
+            //var copyResponse = copyToClipboard.bind(null, data.user_criterias_detail.criterias[task].site_url, '');
+            copyToClipboard(data.user_criterias_detail.criterias[task].site_url);
+            copyBtn.classList.add('copied'); // no I18N
+        }, false);
+        var clearFix = createEle('div', 'clearfix'); // no I18N
+        clearFix.append(goReviewBtn, copyBtn);
+        var taskNote = createEle('div', 'task-note mT10'); // no I18N
+        taskNote.innerHTML = 'After submitting your review to the site, you will receive a confirmation link upon successful approval. Paste it in the field below to complete the task.'; // no I18N
+        freshReviewContainer.append(clearFix, taskNote);
+        // Already reviewed
+        var alreadyReviewdContainer = createEle('div', 'review-already-container'); // no I18N
+        var reviewedHead = createEle('h4'); // no I18N
+        reviewedHead.innerHTML = 'Have you reviewed already?'; // no I18N
+        var urlInput = createEle('input', 'input-style'); // no I18N
+        urlInput.setAttribute('id', 'review-value');
+        urlInput.setAttribute('placeholder', 'Enter url');
+        submitBtn.addEventListener('click', completeReviewTask);
+        alreadyReviewdContainer.append(reviewedHead, urlInput, submitBtn);
+        taskInputsContainer.append(modalTaskHeader, freshReviewContainer, alreadyReviewdContainer, submitBtn);
+    }
+    document.getElementsByClassName('pop-overlay')[0].classList.add('active'); // no I18N
+    document.getElementsByClassName('pop-overlay')[0].append(taskInputsContainer);
+}
+
+function secondaryModalClose() {
+    document.getElementsByClassName('pop-overlay')[0].classList.remove('active'); // no I18N
+    document.getElementsByClassName('pop-overlay')[0].innerHTML = ''; // no I18N
+}
+
+function npsRatingClick(ele) {
+    var number = ele.getAttribute('nps-number');
+    var allItems = document.getElementsByClassName('nps-number-item'); // no I18N
+    for (var item = 0; item < allItems.length; item++) {
+        allItems[item].removeAttribute('rated-item');
+    }
+    ele.setAttribute('rated-item', true);
+    taskDetail.input_value = number; // Input value
+    taskDetail.input_value = number; // Input value
+    var submitBtn = byId('task-submit-btn'); // no I18N
+    submitBtn.classList.remove('inactive'); // no I18N
+    submitBtn.addEventListener('click', completeReviewTask);
+}
+
+async function completeReviewTask() {
+    var taskBasedParam, sendData;
+    var reviewRegex = /^(http(s)?:\/\/)[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-z]{2,6}\b([-a-zA-Z0-9@:%_\+.~#?&//=]*)$/
+    removeFieldError()
+    var isValid = true;
+    if (!byId('review-value').value && taskDetail.selected_task !== 'nps_activity') {
+        byId('review-value').classList.add('error'); // no I18N
+    } else {
+        if (taskDetail.selected_task !== 'testimonial_activity' && !reviewRegex.test(byId('review-value').value)) {
+            byId('review-value').classList.add('error'); // no I18N
+            addFieldError(byId('review-value'), 'Please enter a valid url'); // no I18N
+            isValid = false;
+        } else if (taskDetail.selected_task === 'nps_activity') {
+            sendData = {
+                'rating': taskDetail.input_value // no I18N
+            };
+            taskBasedParam = 'nps'; // no I18N
+        } else if (taskDetail.selected_task === 'testimonial_activity') {
+            sendData = {
+                'testimonial': byId('review-value').value // no I18N
+            };
+            taskBasedParam = 'testimonial'; // no I18N
+        } else {
+            sendData = {
+                'site_url': byId('review-value').value // no I18N
+            };
+            taskBasedParam = 'review'; // no I18N
+        }
+        if (isValid) {
+            byId('task-submit-btn').classList.add('btn-loading'); // no I18N
+            var resp = await httpRequest('POST', 'widget/' + thriveWidgetCode + '/reviewtask/' + taskBasedParam + '/' + taskDetail.criteria_config_id, JSON.stringify(sendData), true); // no I18N
+            byId('task-submit-btn').classList.remove('btn-loading'); // no I18N
+            if (resp.status === 200) {
+                secondaryModalClose()
+                updateReviews = true;
+                getContent();
+            } else if (resp.status === 412) {
+                addFieldError(byId('review-value'), 'Please enter a valid url'); // no I18N
+                //showAnnouncement('Please provide a valid URL', 'error');
+            }
+        }
+    }
+}
+
+function moveFinishedReview() {
+    var finishedTask = document.querySelector('[box-item="' + selectedReviewBox + '"]').cloneNode(true); // no I18N
+    document.querySelector('[box-item="' + selectedReviewBox + '"]').remove(); // no I18N
+    finishedTask.removeEventListener('click', initiateReviewTask);
+}
+
+function redirectToCommerceSignup() {
+    openNewWindow(commerceSignupUrl);
+}
+
+function couponPopup(url) {
+    openNewWindow(url);
+}
+
+function redirectToCommerceSignIn() {
+    openNewWindow(commerceSignInUrl);
+}
+
+var btnLabels = {
+    'share_facebook': 'Share', // no I18N
+    'share_twitter': 'Share', // no I18N
+    'share_linkedin': 'Share', // no I18N
+    'member_purchase': 'Purchase', // no I18N
+    'refer_a_friend': 'Refer', // no I18N
+    'friend_purchase': 'Refer', //no I18N
+    'like_facebook': 'Like', //no I18N
+    'follow_twitter': 'Follow', //no I18N
+    'follow_linkedin': 'Follow', //no I18N
+    'follow_instagram': 'Follow', //no I18N
+    'youtube_subscribe': 'Subscribe', //no I18N
+    'purchase_value_goal': 'Purchase', //no I18N
+    'purchase_count_goal': 'Purchase', //no I18N
+    'refer_a_survey': 'Fill Survey' //no I18N
+}
+
+function loadTaskAndReward() {
+    if (updatePoints) {
+        byId('bannerPoints').innerHTML = getData.points_details.earned_points; //no I18N
+    }
+    var trWrapper = document.getElementsByClassName('tr-wrapper')[0];
+    trWrapper.innerHTML = '';
+    trWrapper.append(closeButtonCreate());
+    var trGroup = ['criteria', 'reward']; // no I18N
+    // BOTTOM DIV
+    for (var tr = 0; tr < trGroup.length; tr++) {
+        var trItem = trGroup[tr];
+        var containerGroup = trItem === 'criteria' ? 'points' : trItem; // no I18N
+        var keys = Object.keys(getData['loyalty_' + trItem]); // no I18N
+        var opposite = trItem === 'criteria' ? 'reward' : 'criteria'; // no I18N
+        var popHeader = createEle('div', 'pop-header'); // no I18N
+        var viewHeader = createEle('h3'); // no I18N
+        viewHeader.innerHTML = headerTitles[trItem];
+        popHeader.append(viewHeader);
+        var listingUl = createEle('ul'); // no I18N
+        var trContainer = createEle('div', 'tr-container'); // no I18N
+        trContainer.setAttribute('tr-group', containerGroup); // no I18N
+        trContainer.append(popHeader, listingUl);
+        document.getElementsByClassName('tr-wrapper')[0].append(trContainer); // no I18N
+        for (var task = 0; task < keys.length; task++) {
+            if (getData.members_criteria_reward_json[keys[task]].status !== 'not_applicable') {
+                var follow_url;
+                var taskItem = getData['loyalty_' + trItem][keys[task]];
+                var taskName = Object.keys(getData['loyalty_' + trItem][keys[task]]['user_' + trItem + 's_detail'][trItem + 's'])[0];
+                var taskId = keys[task];
+                if (checkIfFollowMedium(taskName)) {
+                    var urlKey = taskName === 'refer_a_survey' ? 'unique_url' : 'pageurl' // no I18N
+                    follow_url = getData['loyalty_' + trItem][keys[task]]['user_' + trItem + 's_detail'][trItem + 's'][taskName][urlKey];
+                }
+                var points = taskItem['user_' + opposite + 's_detail'][opposite + 's'].points.count // no I18N
+                var taskTypeLabel = 'loyalty_' + trItem; // NO I18N
+                var loyaltyRewardName = '';
+                var rewardJSON = (getData['loyalty_' + trItem][keys[task]]['user_' + trItem + 's_detail'][trItem + 's'])[taskName];
+                var loyaltyCouponName = '';
+                if (taskTypeLabel.toLowerCase() == 'loyalty_reward' && rewardJSON != null && taskName != null && rewardJSON.hasOwnProperty('name')) {
+                    loyaltyCouponName = rewardJSON.name;
+                }
+                var taskLabelToShow;
+                if (taskTypeLabel.toLowerCase() == 'loyalty_reward' && loyaltyCouponName) {
+                    taskLabelToShow = loyaltyCouponName;
+                }
+                // else if (taskName === 'custom_activity_tracker') {
+                //     taskLabelToShow = getData['loyalty_' + trItem][keys[task]].criteria_config_name;
+                // }
+                else {
+                    taskLabelToShow = getData['loyalty_' + trItem][keys[task]].criteria_config_name;
+                }
+
+                var li = createEle('li', 'tr-list-item'); // no I18N
+                li.setAttribute('tr-item', taskName); // no I18N
+                li.setAttribute('tr-group', trItem); // no I18N
+                li.setAttribute('tr-group', trItem); // no I18N
+                var taskDiv = createEle('div', 'tr-name'); // no I18N
+                var pointsDiv = '<span>' + ((taskName === 'friend_purchase' || taskName === 'member_purchase') ? getData.store_currency.symbol +'1' +  ' = ' : '') + points + ' points</span>'
+                taskDiv.innerHTML = taskLabelToShow + pointsDiv;
+                if(taskName === 'member_purchase' || taskName === 'purchase_value_goal' || taskName === 'purchase_count_goal'){
+                    var minCount = ((getData['loyalty_' + trItem][keys[task]]['user_' + trItem + 's_detail'][trItem + 's'])[taskName]).count
+                    var minvalueDiv = createEle('div', 'tr-min-value-txt'); //no I18N
+                    minvalueDiv.innerHTML = '<span class="prod-coupon")">'+purchaseTaskDescription(taskName)+ '> '+((taskName === 'member_purchase' || taskName === 'purchase_value_goal')? getData.store_currency.symbol : '')+minCount+(taskName ==='purchase_count_goal' ? ' orders': '') //no I18N
+                    taskDiv.append(minvalueDiv)+'</span>'
+        
+                }
+                if (getData.members_criteria_reward_json[keys[task]].status !== 'completed' && taskItem.end_date != -1 && returnDays(taskItem.end_date) <= 7) {
+                    var endDate = createEle('div', 'tr-expiring-txt'); // no I18N
+                    endDate.innerHTML = 'Will expire in ' + returnDays(taskItem.end_date) + ' days'; // no I18N
+                    taskDiv.append(endDate);
+                }
+                if (platformType == 'zoho_commerce') {
+                    if (taskName == 'product_unique_coupon') {
+                        var couponId = getData['loyalty_' + trItem][keys[task]]['user_' + trItem + 's_detail'][trItem + 's'][taskName].commerce_product_unique_id;
+                        var courponUrl = getData.purchase_url.replace('http', 'https') + '/products/' + couponId; // no I18N
+                        taskDiv.innerHTML = taskDiv.innerHTML + '<span class="prod-coupon" onClick="couponPopup(\'' + courponUrl + '\')">View Product</span>';
+                    } else if (taskName == 'collection_unique_coupon') { // no I18N
+                        var couponId = getData['loyalty_' + trItem][keys[task]]['user_' + trItem + 's_detail'][trItem + 's'][taskName].commerce_collection_unique_id;
+                        var courponUrl = getData.purchase_url.replace('http', 'https') + '/collections/' + couponId; // no I18N
+                        taskDiv.innerHTML = taskDiv.innerHTML + '<span class="prod-coupon" onClick="couponPopup(\'' + courponUrl + '\')">View Collection</span>';
+                    }
+                }
+                li.append(taskDiv);
+                if (getData.signed_up_user) {
+                    if (trItem === 'criteria' && getData.members_criteria_reward_json[keys[task]].status === 'completed') {
+                        var completedIcon = createEle('div', 'task-completed-icon'); // no I18N
+                        li.append(completedIcon);
+                    } else if (taskName !== 'custom_activity_tracker') {
+                        var actionBtn = createEle('div', 'btn-style'); // no I18N
+                        if (trItem === 'criteria') {
+                            actionBtn.innerHTML = btnLabels[taskName];
+                            actionBtn.addEventListener('click', initiateTask.bind(null, taskName, taskId, follow_url, taskLabelToShow, ''));
+                        } else {
+                            actionBtn.innerHTML = 'Redeem'; // no I18N
+                            if (points <= getData.points_details.earned_points) {
+                                actionBtn.addEventListener('click', redeemPoints.bind(null, taskId, '')); // no I18N
+                            } else {
+                                actionBtn.classList.add('not-enough-points'); // no I18N
+                            }
+                        }
+                        actionBtn.style.background = getData.page_preference_details.theme_color;
+                        var actionBtnFrame = createEle('div', 'tr-actions'); // no I18N
+                        actionBtnFrame.append(actionBtn);
+                        li.append(actionBtnFrame);
+                    }
+                }
+                document.querySelector('.tr-wrapper [tr-group="' + containerGroup + '"] ul').append(li); // no I18N
+            }
+        }
+    }
+    updatePointsText()
+}
+
+function returnDays(date) {
+    var date1 = new Date();
+    var date2 = new Date(parseInt(date));
+    // Calculate the difference in milliseconds between the two dates
+    var diffInMs = Math.abs(date2 - date1);
+    // Convert milliseconds to days
+    var days = Math.ceil(diffInMs / (1000 * 60 * 60 * 24));
+    return days;
+}
+
+function updatePointsText() {
+    var points = document.querySelectorAll(".points-txt"); // no I18N
+    points.forEach((point) => {
+        point.innerHTML = getData.points_details.earned_points;
+    });
+}
+
+function purchaseTaskDescription(taskName){
+    if(taskName === 'member_purchase'){  // NO I18N
+        return "Purchase value ";  // NO I18N
+    }else if(taskName === 'purchase_value_goal'){  // NO I18N
+        return "Total purchase value ";  // NO I18N
+    }else if(taskName === 'purchase_count_goal'){  // NO I18N
+        return "Total purchase count ";  // NO I18N
+    }
+
+}
+
+async function initiateTask(taskName, criteriaId, follow_url, taskLabelToShow) {
+    if (taskName === 'refer_a_friend' || taskName === 'friend_purchase') {
+        referOnSocialMedia();
+    } else if (taskName === "share_facebook") {
+        var postData = await loyaltyServer.getSocialTask(thriveWidgetCode, criteriaId, 'facebook'); // no I18N
+        openNewWindow('https://www.facebook.com/sharer/sharer.php?u=' + postData.user_share_url + '&quote=' + postData.social_medium_message); // NO I18N
+        whileRedirect(taskName, taskLabelToShow)
+    } else if (taskName === "share_twitter") { // NO I18N
+        var postData = await loyaltyServer.getSocialTask(thriveWidgetCode, criteriaId, 'twitter'); // no I18N
+        openNewWindow('https://twitter.com/intent/tweet?text=' + postData.social_medium_message); // NO I18N
+        whileRedirect(taskName , taskLabelToShow)
+    } else if (taskName === "member_purchase" || taskName === 'purchase_value_goal' || taskName === 'purchase_count_goal') {
+        if (getData.purchase_url && getData.purchase_url !== null) {
+            openNewWindow(getData.purchase_url);
+        }
+    } else if (taskName === "refer_a_survey") {
+        whileRedirect(taskName, taskLabelToShow);
+        openNewWindow(follow_url);
+    } else if (checkIfFollowMedium(taskName)) {
+        handleSocialMediaFollow(taskName, criteriaId, follow_url);
+    }
+}
+
+async function handleSocialMediaFollow(taskName, criteriaId, follow_url) {
+    var postData = await loyaltyServer.getSocialFollowTask(thriveWidgetCode, criteriaId, taskName);
+    var postUrl;
+    if (taskName === "like_facebook") {
+        postUrl = 'https://www.facebook.com/plugins/page.php?href=facebook.com%2F' + follow_url; // NO I18N
+    } else if (taskName === "follow_twitter") {
+        postUrl = 'https://twitter.com/intent/follow?screen_name=' + follow_url; // NO I18N
+    } else if (taskName === "follow_linkedin") {
+        postUrl = 'https://linkedin.com/company/' + follow_url; // NO I18N
+    } else if (taskName === "follow_instagram") {
+        postUrl = 'https://instagram.com/' + follow_url; // NO I18N
+    } else if (taskName === "youtube_subscribe") {
+        postUrl = 'https://youtube.com/' + follow_url + '?sub_confirmation=1'; // NO I18N
+    }
+    openNewWindow(postUrl);
+    postingSuccess(postData, taskName, criteriaId, thriveWidgetCode);
+}
+
+function referOnSocialMedia() {
+    var popupContent = createEle('div'); // no I18N
+    var heading = createEle('h2', ''); // no I18N
+    heading.setAttribute('class', 'popup-head');
+    heading.innerHTML = 'Share link'; // NO I18N
+    var iconsContainer = createEle('div', 'social-icons-container'); // no I18N
+    var iconsList = ['facebook', 'linkedin', 'twitter', 'whatsapp', 'copy']; // no I18N
+    for (var icon = 0; icon < iconsList.length; icon++) {
+        var eachIcon = createEle('span', 'social-icon'); // no I18N
+        eachIcon.addEventListener('click', simpleSocialShare.bind(null, iconsList[icon], ''));
+        eachIcon.setAttribute('medium-type', iconsList[icon]);
+        iconsContainer.append(eachIcon);
+    }
+    var copiedText = createEle('div', 'copied-txt'); // no I18N
+    copiedText.innerHTML = 'Copied!'; // no I18N
+    iconsContainer.append(copiedText);
+    popupContent.append(heading, iconsContainer);
+    createModalOverlay(popupContent);
+}
+
+function whileRedirect(taskKey, taskLableToShow) {
+    var popupContent = createEle('div'); // no I18N
+    var popupHead = createEle('h2', 'popup-head'); // no I18N
+    popupHead.innerHTML = taskLableToShow; 
+    var content = createEle('p', 'mB0'); // no I18N
+    if(taskKey==='refer_a_survey'){
+        content.innerHTML = 'You will be awarded for some points immediately after you submit the survey'; // no I18N
+    }else{
+        content.innerHTML = 'You will be awarded with the points immediately after a friend visits the URL you shared';  // no I18N
+    }
+    popupContent.append(popupHead, content);
+    createModalOverlay(popupContent);
+}
+
+function createModalOverlay(popupContent) {
+    var overlay = createEle('div', 'pop-overlay active'); // no I18N
+    var container = createEle('div', 'pop-container'); // no I18N
+    var closeIcon = '<span class="close-icon" onClick="closeInnerPop()"></span>'; // no I18N
+    container.innerHTML = closeIcon;
+    container.append(popupContent)
+    overlay.append(container);
+    document.body.append(overlay);
+}
+
+var redeemID;
+async function redeemPoints(id) {
+    redeemID = id;
+    var popupContent = createEle('div'); // no I18N
+    var heading = createEle('h2', 'popup-head'); // no I18N
+    heading.innerHTML = 'Want to redeem?'; // NO I18N
+    var description = createEle('p', 'redeem-desc'); // no I18N
+    description.innerHTML = 'Do you want to redeem this reward. If yes, please click the button below.'; // NO I18N
+    var closeButton = document.createElement('div');
+    closeButton.setAttribute('class', 'btn-style lp-primary-btn redeem-confirm');
+    closeButton.style.background = getData.page_preference_details.theme_color;
+    closeButton.innerHTML = 'Yes, Redeem'; // no I18N
+    closeButton.addEventListener('click', redeemConfirmationPop);
+    popupContent.append(heading, description, closeButton);
+    createModalOverlay(popupContent);
+}
+
+async function confirmCookieBeforeOptin() {
+    var popupContent = createEle('div'); // no I18N
+    var heading = createEle('h2', 'popup-head'); // no I18N
+    heading.innerHTML = 'Attention!'; // NO I18N
+    var description = createEle('p', 'redeem-desc'); // no I18N
+    description.innerHTML = 'To opt-in for the program you must consent to our use of cookies.'; // NO I18N
+    var closeButton = document.createElement('div');
+    closeButton.setAttribute('class', 'btn-style lp-primary-btn redeem-confirm');
+    closeButton.style.background = getData.page_preference_details.theme_color;
+    /*closeButton.innerHTML = 'Yes, Proceed'; // no I18N*/
+    closeButton.innerHTML = 'Accept Cookies'; // no I18N
+    closeButton.setAttribute('id', 'accept-cookies-btn');
+    closeButton.addEventListener('click', joinCampaign);
+    popupContent.append(heading, description, closeButton);
+    createModalOverlay(popupContent);
+}
+
+async function redeemConfirmationPop() {
+    if (redeemID) {
+        document.getElementsByClassName('redeem-confirm')[0].innerHTML = 'Redeeming..' // NO I18N
+        var redeemResponse = await loyaltyServer.redeemReward(thriveWidgetCode, redeemID);
+        if (redeemResponse.status && redeemResponse.status === 412) {
+            redeemCompleted('contact_admin'); // no I18N 
+        } else if (redeemResponse.data && redeemResponse.data.error_code && redeemResponse.data.error_code === 3140) {
+            redeemCompleted('contact_admin'); // no I18N 
+        } else if (redeemResponse.data && redeemResponse.data.code && redeemResponse.data.code === 200) {
+            redeemCompleted(redeemResponse.data.reward_status);
+            updatePoints = true;
+            getContent();
+        } else {
+            showAnnouncement('There is some error', 'error'); // no I18N 
+        }
+    }
+}
+
+function redeemCompleted(statuss) {
+    var redeemText = {
+        approve: {
+            head: "Redeemed", // no I18N 
+            description: "Reward redeemed successfully.\n You will receive an email with reward details" // no I18N
+        },
+        approval_pending: {
+            head: "Pending for approval", // no I18N 
+            description: "Request for reward redemption is processed. Once admin approves, you will receive an email with reward details" // no I18N
+        },
+        failed: {
+            head: "Failed", // no I18N
+            description: "Oops, unable to process the reward. Kindly contact the admin" // no I18N
+        },
+        contact_admin: {
+            head: "Uh-oh!", // no I18N
+            description: "There is an issue with redeeming this reward. Please contact the site owner." // no I18N
+        }
+    }
+    var statusIcon = document.createElement('div');
+    statusIcon.setAttribute('redeem-status', statuss);
+    statusIcon.setAttribute('class', 'redeem-status-icon');
+    document.getElementsByClassName('pop-container')[0].prepend(statusIcon)
+    document.getElementsByClassName('popup-head')[0].innerHTML = redeemText[statuss].head;
+    document.getElementsByClassName('redeem-desc')[0].innerHTML = redeemText[statuss].description;
+    document.getElementsByClassName('redeem-confirm')[0].innerHTML = 'Close' // NO I18N
+    document.getElementsByClassName('redeem-confirm')[0].classList.remove('lp-primary-btn'); // NO I18N
+    document.getElementsByClassName('redeem-confirm')[0].classList.add('lp-secondary-btn'); // NO I18N
+    document.getElementsByClassName('redeem-confirm')[0].removeEventListener('click', redeemConfirmationPop); // NO I18N
+    document.getElementsByClassName('redeem-confirm')[0].addEventListener('click', closeRedeemPop); // NO I18N
+}
+
+function closeRedeemPop() {
+    document.getElementsByClassName('pop-overlay')[0].remove();
+}
+
+function simpleSocialShare(medium) {
+    var message = getData.page_preference_details.user_invite_message !== undefined ? getData.page_preference_details.user_invite_message : 'Join'; // NO I18N
+    var shareUrl;        
+    if (medium === 'facebook') {
+        shareUrl = 'https://www.facebook.com/sharer/sharer.php?u=' + shareurl + '&quote=' + message; // NO I18N
+    } else if (medium === 'linkedin') { // NO I18N
+        shareUrl = 'https://www.linkedin.com/shareArticle?mini=true&url=' + shareurl + '&title=' + message; // NO I18N
+    } else if (medium === 'twitter') { // NO I18N
+        shareUrl = 'https://twitter.com/intent/tweet?text=' + message + '%0d%0a' + shareurl; // NO I18N
+    } else if (medium === 'whatsapp') {
+        shareUrl = 'https://api.whatsapp.com/send?phone=&text=' + message + '%0d%0a' + shareurl; // NO I18N
+    } if (medium === 'copy') { // NO I18N
+        copyUrl();
+    }
+    shareUrl ? openNewWindow(shareUrl) : false;
+}
+
+function closeModal(closeItem) {
+    if (closeItem === 'transaction') {
+        loadMoreCount = 0;
+        document.getElementsByClassName('transactions-wrapper')[0].innerHTML = ''; // no I18N
+    }
+    document.getElementsByTagName('body')[0].classList.remove('popupOpened'); // no I18N
+    var popus = document.getElementsByClassName('pop-frame'); // no I18N
+    for (var pop = 0; pop < popus.length; pop++) {
+        document.getElementsByClassName('pop-frame')[pop].classList.remove('active'); // no I18N	
+    }
+    //document.getElementsByClassName('pop-frame')[0].classList.remove('active'); // no I18N
+    document.getElementsByClassName('pop-wrapper')[0].removeAttribute('show-group'); // no I18N
+    document.getElementsByClassName('pop-wrapper')[0].innerHTML = ''; // no I18N
+}
+
+function openSection(tab, data) {
+    if (tab === 'review') {
+        reviewsListing(getData);
+    } else if (tab === 'activity') {
+        multiCriteriaListing(getData);
+    } else if (tab.includes('vip')) {
+        tierBenefitsListing(tab, getData);
+    } else {
+        loadTaskAndReward();
+    }
+    document.getElementsByTagName('body')[0].classList.add('popupOpened'); // no I18N
+    document.getElementsByClassName('pop-frame')[0].classList.add('active'); // no I18N
+    document.getElementsByClassName('pop-wrapper')[0].setAttribute('show-group', tab); // no I18N
+}
+
+function setLocalStorage() {
+    var test = 'test'; // NO I18N
+    try {
+        localStorage.setItem(test, test);
+        localStorage.removeItem(test);
+        return true;
+    } catch (e) {
+        return false;
+    }
+}
+
+async function optInCampaign(optinType) {
+    document.getElementsByClassName('sp-submit-btn')[0].classList.add('btn-loading'); // NO I18N
+    // var optinResponse = await httpRequest('POST', 'publicapi/' + thriveWidgetCode + '/campoptin', JSON.stringify(customerData), true); // NO I18N
+
+    document.getElementsByClassName('sp-submit-btn')[0].classList.remove('btn-loading'); // NO I18N
+    if (optinResponse.data) {
+        if (optinType === 'referral') {
+            return optinResponse;
+        } else if (optinResponse.data.signed_up_user) {
+            thrivePublicServer.identifyMember(thriveWidgetCode, JSON.stringify(customerData));
+        } else if (optinResponse.data.error_code === 100060) {
+            changeSignupContent('approval-pending'); // NO I18N
+        } else if (optinResponse.data.error_code === 100240) {
+            changeSignupContent('singup-done-check-mail'); // NO I18N
+        }
+    }
+}
+
+function changeSignupContent(type) {
+    // if (type !== null && type === 'approval-pending') {
+    // byId('signup_form_area').innerHTML = '<h2 class="sp-heading">Approval pending!</h2><p class="sp-desc">Program admin has to approve your request. Once you are approved by the admin, use login option to enter program.</p>';
+    // }
+}
+
+async function joinCampaign() {
+    var loadBtn = userConsent ? 'accept-cookies-btn' : 'join-campaign-btn'; // no I18N 
+    byId(loadBtn).classList.add('btn-loading'); // no I18N
+    var optinResponse = await thrivePublicServer.campoptin(thriveWidgetCode, customerData);
+    byId(loadBtn).classList.remove('btn-loading'); // no I18N
+    if (optinResponse.status === 200) {
+        if (optinResponse.data.error_code === 100270) {
+            byId('joinSection').innerHTML = '<p class="sp-desc">Looks like an email with similar alias is part of this program. Kindly try logging in using that store.</p>';
+        } else {
+            document.body.innerHTML = '';
+            document.body.classList.add('widget-loading'); // no I18N
+            getContent();
+        }
+    }
+}
+
+async function userLogin() {
+    var email = byId('login_email_id'); // NO I18N
+    removeFieldError();
+    if (!emailVerify(email.value)) {
+        email.classList.add('error'); // no I18N
+        email.focus();
+        addFieldError(email, 'Enter a proper email address'); // NO I18N
+    } else {
+        byId('login-submit-btn').classList.add('btn-loading'); // no I18N
+        var sendData = {
+            "za_email_id": email.value.trim() // no I18N
+        };
+        var loginStatus = await httpRequest('POST', 'publicapi/' + thriveWidgetCode + '/login', JSON.stringify(sendData)); // NO I18N
+        byId('login-submit-btn').classList.remove('btn-loading'); // no I18N
+        if (loginStatus.status === 404) {
+            email.classList.add('error'); // NO I18N
+            email.focus();
+            addFieldError(email, 'Email id does not exist'); // NO I18N
+
+        } else if (loginStatus && loginStatus.data.code > 199 && loginStatus.data.code < 300) {
+            document.getElementsByClassName('display-login')[0].style.display = 'none';
+            document.getElementsByClassName('success-frame')[0].classList.add('show'); // NO I18N
+        }
+    }
+}
+
+function closeInnerPop() {
+    document.getElementsByClassName('pop-overlay')[0].remove();
+}
+
+function copyUrl() {
+    copyToClipboard(shareurl);
+    document.getElementsByClassName('copied-txt')[0].classList.add('show'); // NO I18N
+    setTimeout(function() {
+        document.getElementsByClassName('copied-txt')[0].classList.remove('show'); // NO I18N
+    }, 1000)
+}
+
+// Anouncement
+function showAnnouncement(message, type) {
+    var announcementBar = createEle('div', type); // no I18N
+    announcementBar.setAttribute('id', 'announcement-tab');
+    announcementBar.innerHTML = message;
+    document.body.appendChild(announcementBar); //
+    setTimeout(function() {
+        byId('announcement-tab').remove(); // NO I18N
+    }, 5100);
+}
+
+// Earn Points
+var postData, medium, criteriaID;
+async function completeTask() {
+    var taskName = event.target.getAttribute('task-name');
+    medium = event.target.getAttribute('task-medium');
+    criteriaID = event.target.getAttribute('task-id');
+    var widgetCodeFB = thriveWidgetCode;
+    if (taskName === 'friend_purchase' || taskName === 'refer_a_friend') {
+        var scrollHeight = byId('zgiquicontent').offsetTop; // NO I18N
+        window.scrollTo({
+            top: scrollHeight,
+            behavior: 'smooth' // NO I18N
+        });
+        setTimeout(function() {
+            document.getElementsByClassName('referral-navigation-text')[0].classList.add('show') // no I18N
+        }, 300);
+        setTimeout(function() {
+            document.getElementsByClassName('referral-navigation-text')[0].classList.remove('show') // no I18N
+        }, 3000);
+    } else if (taskName === "share_facebook") {
+        postData = await httpRequest('GET', 'publicapi/' + thriveWidgetCode + '/social/' + criteriaID + '/' + medium); // no I18N
+        openNewWindow('https://www.facebook.com/sharer/sharer.php?u=' + postData.user_share_url + '&quote=' + postData.social_medium_message); // NO I18N
+        postingSuccess(postData, medium, criteriaID, widgetCodeFB);
+        if (getData.purchase_url && getData.purchase_url !== null) {
+            openNewWindow(getData.purchase_url);
+        }
+    }
+}
+
+function showSignupResponse(message) {
+    document.getElementsByClassName('page-container')[0].innerHTML = '<div class="signup-response-message">' + message + '</div>';
+}
+
+async function postingSuccess(data, medium, criteriaID, widgetCodeFB) {
+    var secretKey = data.social_secret_key;
+    if (checkIfFollowMedium(medium)) {
+        await loyaltyServer.postSocialFollowTaskSuccess(widgetCodeFB, criteriaID, medium, secretKey);
+    } else {
+        await loyaltyServer.postSocialTaskSuccess(widgetCodeFB, criteriaID, medium, secretKey);
+    }
+    showAnnouncement(taskCompletitonMessages(medium), 'success'); // no I18N
+    updatePoints = true;
+    getContent();
+}
+
+function taskCompletitonMessages(medium) {
+    var message = 'Successfully shared'; // NO I18N
+    if (medium === 'follow_instagram' || medium === 'follow_linkedin' || medium === 'follow_twitter') {
+        message = 'Successfully followed'; // NO I18N
+    } else if (medium === 'like_facebook') {
+        message = 'Successfully liked'; // NO I18N
+    } else if (medium === 'youtube_subscribe') {
+        message = 'Successfully subscribed'; // NO I18N
+    }
+    return message;
+}
+
+function addFieldError(referenceNode, errorMessage) {
+    var fieldID = referenceNode.getAttribute('id');
+    var errorText = document.createElement("span")
+    errorText.setAttribute('class', 'field-error-msg')
+    errorText.setAttribute('error-for', fieldID)
+    errorText.innerHTML = errorMessage !== undefined ? errorMessage : "Field should not be empty" // No I18N
+    referenceNode.parentNode.insertBefore(errorText, referenceNode.nextSibling);
+}
+
+function removeFieldError() {
+    var errors = document.querySelectorAll('.field-error-msg') // No I18N
+    for (var field = 0; field < errors.length; field++) {
+        errors[field].remove()
+    }
+}
+
+function copyToClipboard(data) {
+    if (data) {
+        var aux = document.createElement("input");
+        aux.setAttribute("value", data);
+        byId('widgetContainer').appendChild(aux); // NO I18N
+        aux.select();
+        document.execCommand("copy"); // NO I18N
+        byId('widgetContainer').removeChild(aux); // NO I18N
+    }
+    return false;
+}
+
+function checkIfFollowMedium(medium) {
+    var mediumList = ['youtube_subscribe', 'follow_twitter', 'follow_instagram', 'like_facebook', 'follow_linkedin', 'refer_a_survey']; // no I18N
+    if (mediumList.includes(medium)) {
+        return true;
+    }
+    return false;
+}
+
+//TERMS AND CONDITION POP
+var tcText;
+async function termsAndCondition() {
+    event.preventDefault();
+    if (tcText === undefined) {
+        tcText = await httpRequest('GET', 'publicpages/' + thriveWidgetCode + '/terms_and_conditions'); // NO I18N
+    }
+    if (tcText.code === 200) {
+        document.getElementsByClassName('tc-text')[0].innerHTML = tcText.data.full_page;
+        document.getElementsByClassName('pop-up-overlay')[0].classList.add('active'); // NO I18N
+        document.body.classList.add('scrollDisable'); // NO I18N
+    }
+}
+
+function closeDocument() {
+    document.getElementsByClassName('tc-text')[0].innerHTML = "";
+    document.getElementsByClassName('pop-up-overlay')[0].classList.remove('active'); // NO I18N
+    document.body.classList.remove('scrollDisable'); // NO I18N
+}
+
+// WEBVIEW CHANGES
+function detectLoadingEngine() {
+    var engine = 'Web Browser'; // NO I18N
+    if (typeof navigator !== 'undefined') {
+        var ua = navigator.userAgent || navigator.vendor || window.opera;
+        if (/Android/i.test(ua)) {
+            engine = /wv|Version\/.*Chrome\/.* Mobile/.test(ua) ? 'Android WebView' : 'Android Browser'; // NO I18N
+        } else if (/iPad|iPhone|iPod/.test(ua) && !window.MSStream) {
+            engine = /CriOS/.test(ua) ? 'iOS Chrome' : /Safari/.test(ua) ? 'iOS Safari' : 'iOS WebView'; // NO I18N
+        }
+    } else {
+        engine = 'Unknown Environment'; // NO I18N
+    }
+    return engine;
+}
+
+
+var loadingEngine = detectLoadingEngine();
+
+function openLinkFromParent (url) {
+    var data = {
+        message: 'openLink', // NO I18N
+        url: url
+    }
+    postMessageToParent(data);
+}
+
+function openNewWindow (url) {
+    if (loadingEngine === 'Web Browser') {
+        window.open(url, '_blank'); // NO I18N
+    } else {
+        openLinkFromParent(url);
+    }
+}

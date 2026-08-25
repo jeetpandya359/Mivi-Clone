@@ -1,0 +1,292 @@
+var byId = function (id) { return document.getElementById(id); }
+// Create Thrive connection tag
+if (!byId('thrive_connection_tag')) {
+	var connectionTag = document.createElement('script');
+	firstScriptTag = document.getElementsByTagName('script')[0];
+	connectionTag.src = zt_parent_domain + 'static/thrive_action_scripts/js/ztconnection.js';
+	connectionTag.id = "thrive_connection_tag";
+	firstScriptTag.parentNode.insertBefore(connectionTag, firstScriptTag);
+}
+
+var requestTypes = {
+    "login": "/login",// NO I18N
+    "signupform": "/signupform", // NO I18N
+    "terms_and_conditions": "/terms_and_conditions", // NO I18N
+    "identifymember": "/identifymember",// NO I18N
+    "campoptin": "/campoptin",// NO I18N
+    "getpage": "/getpage",// NO I18N
+    "redeemreward": "/redeemreward", // NO I18N
+    "social": "/social", // NO I18N
+    "signup": "/signup", // NO I18N
+    "createuserdetails": "/createuserdetails",// NO I18N
+    "socialfollow": "/socialfollow",// NO I18N
+    "privacydetails": "/privacydetails"// NO I18N
+};
+
+var apiModule ={
+    "affiliate": "affiliate-registration-form", // NO I18N
+    "widget": "widget" // NO I18N
+};
+
+var url = document.getElementById('thrive_connection_tag').src;
+var arr = url.split("/");
+var apiDomain = arr[0] + "//" + arr[2] + '/';
+
+var serverWidgetCode;
+serverWidgetCode = window.location.href.split('/');
+serverWidgetCode = serverWidgetCode[serverWidgetCode.length - 1];
+if(serverWidgetCode.includes("?")){
+    serverWidgetCode = serverWidgetCode.split('?')[0];
+}
+
+function getRequestURL(requestType){
+    try{
+        if(requestTypes[requestType]){
+            return requestTypes[requestType];
+        }else{
+            throw 'The request type made is not valid. Kindly check.';// NO I18N
+        }
+    }catch (e) {
+        return null;
+    }
+}
+
+function getRequestModule(module){
+    try{
+        if(apiModule[module]){
+            return apiModule[module];
+        }else{
+            throw 'The request module url is not valid. Kindly check.';// NO I18N
+        }
+    }catch (e) {
+        return null;
+    }
+}
+
+function getHttpRequest(module,requestType){
+    if(requestType){
+        var requestURL=getRequestURL(requestType);
+        module=getRequestModule(module);
+        if(requestURL){
+            var requestData = httpRequest('GET', module + '/' + serverWidgetCode + requestURL); // NO I18N
+            return requestData;
+        }else{
+            return null;
+        }
+    }
+}
+
+function getHttpRequestOnURL(module,requestType,urlValue){
+    if(requestType){
+        var requestURL=getRequestURL(requestType);
+        module=getRequestModule(module);
+        if(requestURL){
+            var requestData = httpRequest('GET', module + '/' + serverWidgetCode + requestURL + '/' + urlValue); // NO I18N
+            return requestData;
+        }else{
+            return null;
+        }
+    }
+}
+
+function postHttpRequest(module,requestType,postData){
+    if(requestType){
+        var requestURL=getRequestURL(requestType);
+        module=getRequestModule(module);
+        if(requestURL){
+            var requestData = httpRequest('POST', module + '/' + serverWidgetCode + requestURL, JSON.stringify(postData)); // NO I18N
+            return requestData;
+        }else{
+            return null;
+        }
+    }
+}
+
+function postHttpRequestWithCred(module,requestType,postData){
+    if(requestType){
+        var requestURL=getRequestURL(requestType);
+        module=getRequestModule(module);
+        if(requestURL){
+            var requestData = httpRequest('POST', module + '/' + serverWidgetCode + requestURL, JSON.stringify(postData), true); // NO I18N
+            return requestData;
+        }else{
+            return null;
+        }
+    }
+}
+
+function postHttpRequestOnURL(module,requestType,urlValue){
+    if(requestType){
+        var requestURL=getRequestURL(requestType);
+        module=getRequestModule(module);
+        if(requestURL){
+            var requestData = httpRequest('POST', module + '/' + serverWidgetCode + requestURL + '/' + urlValue); // NO I18N
+            return requestData;
+        }else{
+            return null;
+        }
+    }
+}
+
+function postHttpRequestOnURLWithBody(module,requestType,urlValue, bodyJson){
+    if(requestType){
+        var requestURL=getRequestURL(requestType);
+        module=getRequestModule(module);
+        if(requestURL){
+            var requestData = httpRequest('POST', module + '/' + serverWidgetCode + requestURL + '/' + urlValue,JSON.stringify(bodyJson)); // NO I18N
+            return requestData;
+        }else{
+            return null;
+        }
+    }
+}
+
+
+var affiliateServer = {
+    async getLoginCheck(){
+        var loginHash = getUrlParameter('loginhash'); // NO I18N
+        if (loginHash !== undefined && loginHash !== null && loginHash !== '') {
+            var loginCheck = 'affiliate/' + serverWidgetCode + '/login/' + loginHash; // NO I18N
+            httpRequest('GET', loginCheck); // NO I18N
+        }
+        return;
+    },
+
+    async getSignupForm(){
+        return await getHttpRequest('affiliate','signupform');// NO I18N
+    },
+
+    async identifyMember(customerData){
+        return await postHttpRequestWithCredentials('affiliate','identifymember',customerData);// NO I18N
+    },
+
+    async postSignupForm(sendData){
+        return await postHttpRequest('affiliate','signupform',sendData);// NO I18N
+    },
+
+    async getTermsAndConditions(){
+        return await getHttpRequest('affiliate','terms_and_conditions');// NO I18N
+    },
+
+    async postLogin(sendData){
+        return await postHttpRequest('affiliate','login',sendData);// NO I18N
+    }
+
+};
+
+var loyaltyServer = {
+
+    async campoptin(uniqueWidgetCode,payload){
+        serverWidgetCode = uniqueWidgetCode;
+        return await postHttpRequest('widget','campoptin',payload);// NO I18N
+    },
+    
+    async redeemReward(uniqueWidgetCode,redeemId){
+        serverWidgetCode = uniqueWidgetCode;
+        return await postHttpRequestOnURL('widget','redeemreward',redeemId);// NO I18N
+    },
+
+    async getSocialTask(uniqueWidgetCode,criteriaId,medium){
+        serverWidgetCode = uniqueWidgetCode;
+        return await getHttpRequestOnURL('widget','social',criteriaId + "/" + medium);// NO I18N
+    },
+
+    async postSocialTask(uniqueWidgetCode,criteriaId,medium){
+        serverWidgetCode = uniqueWidgetCode;
+        return await postHttpRequestOnURL('widget','social',criteriaId + "/" + medium);// NO I18N
+    },
+
+    async getSocialFollowTask(uniqueWidgetCode,criteriaId,medium){
+        serverWidgetCode = uniqueWidgetCode;
+        return await getHttpRequestOnURL('widget','socialfollow',criteriaId + "/" + medium);// NO I18N
+    },
+
+    async postSocialTaskSuccess(uniqueWidgetCode,criteriaId,medium,socialSecretKey){
+        serverWidgetCode = uniqueWidgetCode;
+        var sendData = {
+            "social_secret_key": socialSecretKey // no I18N
+        };
+        return await postHttpRequestOnURLWithBody('widget','social',criteriaId + "/" + medium,sendData);// NO I18N
+    },
+
+    async postSocialFollowTaskSuccess(uniqueWidgetCode,criteriaId,medium,socialSecretKey){
+        serverWidgetCode = uniqueWidgetCode;
+        var sendData = {
+            "social_secret_key": socialSecretKey // no I18N
+        };
+        return await postHttpRequestOnURLWithBody('widget','socialfollow',criteriaId + "/" + medium,sendData);// NO I18N
+    },
+
+    async identifyMember(uniqueWidgetCode,payload){
+        serverWidgetCode = uniqueWidgetCode;
+        return await postHttpRequest('widget','identifymember',payload);// NO I18N
+    },
+
+    async createThriveDigest(uniqueWidgetCode,payload){
+        serverWidgetCode = uniqueWidgetCode;
+        return await postHttpRequest('widget','createuserdetails',payload);// NO I18N
+    }
+    
+};
+
+var ecommerceServer = {
+    async getCurrentPortalUser(domain){
+        var userResponse = await externalHttpRequest('GET', domain + '/portaluser/getCurrentPortalUser', null, false,null);// NO I18N
+        return userResponse;
+    },
+    async getCurrentUserProfile(domain){
+        var userResponse = await externalHttpRequest('GET', domain + '/portaluser/userProfile', null, false,null);// NO I18N
+        return userResponse;
+    },
+    async getCookieConsentSetting(uniqueWidgetCode){
+        serverWidgetCode = uniqueWidgetCode;
+        return await getHttpRequest('widget','privacydetails');// NO I18N
+    },
+    async getWixCurrentPortalUser(domain){
+        var userResponse = await externalHttpRequest('GET', domain + '/_api/apps/current-member/'+thriveWixAppId, null, false,null);// NO I18N
+        return userResponse;
+    },
+    async getTCCurrentPortalUser(domain){
+        var headersArr = new Array();
+        var csrfToken = {"key":"X-ZCSRF-TOKEN","value":csrfParamName+"="+$.cookie(csrfCookieName)};// NO I18N
+        headersArr.push(csrfToken);
+        var userResponse = await externalHttpRequest('GET', domain + '/showtime/api/v4/viewer/userInfos.json', null, false,headersArr);// NO I18N
+        return userResponse;
+    }
+}
+
+var thrivePublicServer = {
+
+    async campoptin(uniqueWidgetCode,payload){
+        var optinStep;
+        var optInData = payload;
+        refCookie = getRefCookieInLocalStorage(uniqueWidgetCode);
+        if(refCookie!= null){
+            optInData.thrive_ref_id = refCookie;
+        }
+        optinStep =await loyaltyServer.campoptin(uniqueWidgetCode,optInData);
+        delete optInData.thrive_ref_id;
+        return optinStep;
+    },
+
+    async identifyMember(uniqueWidgetCode,payload){
+        var optInData = payload;
+        if(optInData !== undefined){
+            refCookie = getRefCookieInLocalStorage(uniqueWidgetCode);
+            if(refCookie!== undefined && refCookie!== null){
+                optInData.thrive_ref_id = refCookie;
+            }
+        }
+        var memberRequest =await loyaltyServer.identifyMember(uniqueWidgetCode,optInData);
+        if(optInData !== undefined){
+            delete optInData.thrive_ref_id;
+        }
+        return memberRequest;
+    },
+
+    async createThriveDigest(uniqueWidgetCode,payload){
+        var memberRequest =await loyaltyServer.createThriveDigest(uniqueWidgetCode,payload);
+        return memberRequest;
+    }
+    
+};

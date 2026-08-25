@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Home</title>
+    <link rel="stylesheet" href="./css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="logo"><img src="./img/logo.avif"></div>
+        <div class="EB" onclick="toggleSlidingSectioneb()"><label style="cursor: pointer; ">Earbuds</label></div>
+        <div class="SB"onclick="toggleSlidingSectionsb()"><label style="cursor: pointer; ">Soundbars</label></div>
+        <div class="EP"onclick="toggleSlidingSectionep()"><label style="cursor: pointer; ">Earphone</label></div>
+        <div class="SK"onclick="toggleSlidingSectionsp()"><label style="cursor: pointer; ">Speakers</label></div>
+        <div class="SPP">Support</label></div>
+            <div class="icon">
+                
+            </div>
+    </nav>
+
+            <!-- slidind section for earbuds -->
+    <div class="sliding-section-eb" id="slidingSection-eb">
+        <div class="sliding-content-eb">
+            <div>
+                <h3>SuperPods</h3>
+                <p id="superPods">Immersio</p>
+                <p>Halo</p>
+                <p>Opera ANC</p>
+                <p>Opera</p>
+            </div>
+            <div>
+                <h3>DuoPods</h3>
+                <p>DuoPods i7</p>
+                <p>DuoPods i6</p>
+                <p>DuoPods i5</p>
+                <p>DuoPods i3</p>
+            </div>                                                              
+            <div>
+                <h3>Best Selling</h3>
+                <p>DuoPods K6</p>
+                <p>DuoPods K5</p>
+                <p>DuoPods i2</p>
+                <p>DuoPods D3</p>
+            </div>
+            <div>
+                <h3>Event</h3>
+                <p>Gifts for Diwali</p>
+                <p>Corporate Gifts</p>
+                <p>Gifts for Sister</p>
+                <p>Gifts for Friends</p>
+            </div>
+        </div>
+    </div>
+
+         <!-- slidind section for soundbars -->
+    <div class="sliding-section-sb" id="slidingSection-sb">
+        <div class="sliding-content-sb">
+            <div>
+                <h3>Dolby</h3>
+                <p id="superPods">Fort H880</p>
+                <p>Fort H750</p>
+                <p>Fort S660</p>
+                <p>Fort Q700D</p>
+            </div>
+            <div>
+                <h3>5.1 Channel</h3>
+                <p>Fort H750</p>
+                <p>Fort Q700 D</p>
+            </div>                                                              
+            <div>
+                <h3>Soudbar with <br> soundwoofer</h3>
+                <p>Fort S36</p>
+                <p>Fort R50</p>
+                <p>Fort S200</p>
+            </div>
+            <div>
+                <h3>Mini Soundbars</h3>
+                <p>Fort S16</p>
+                <p>Fort S24</p>
+                <p>Fort R18</p>
+                <p>Fort R26</p>
+            </div>
+        </div>
+    </div>
+
+          <!-- Sliding section for earphones -->
+    <div class="sliding-section-ep" id="slidingSection-ep">
+        <div class="sliding-content-ep">
+            <div>
+                <h3>Neckband</h3>
+                <p>Collar Flash Pro</p>
+                <p>Collar Flash</p>
+                <p>Opera ANC</p>
+                <p>Collar D25</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sliding section for speakers -->
+    <div class="sliding-section-sp" id="slidingSection-sp">
+        <div class="sliding-content-sp">
+            <div>
+                <h3>Bluetooth</h3>
+                <p>Roam 2</p>
+                <p>Octave 3</p>
+                <p>Play Speaker</p>
+            </div>
+        </div>
+    </div>
+
+    <div id="overlay"></div>
+
+
+    <div class="block1">
+        <video autoplay muted loop class="fullscreen-video">
+            <source src="./img/main.mp4" type="video/mp4">
+        </video>
+        <div class="text">
+            <h2>Hear as clear as a Fox!</h2>
+            <label>It's an expression we Mivians have taken quite seriously. Our new range of soundbars and TWS earbuds are a testament to the level of clarity we expect everyone to upgrade.</label>
+        </div>
+    </div>
+
+
+    <div class="block2">
+        <div class="sub-block2">
+            <h3>Upgrade to the Next level of Clarity with</h3>
+            <img src="./img/SP.webp">
+        </div>
+        <div class="sub-block3">
+            <li>
+                <a href="./html/superP.html" class="BD1">
+                    <div class="image-container">
+                        <h3>Immersio</h3>
+                        <img src="./img/GP.webp" alt="Image">
+                    </div>
+                    <div class="GP1">
+                        <img src="./img/GP1.avif" alt="Accessory">
+                    </div>
+                    <div class="GP2">
+                        <h2>Hear Clear With</h2>
+                        <P>Cinema in Your Ears</P>
+                    </div>
+                </a>
+            </li>
+            <li>
+                <a href="./html/halo.html" class="BD2">
+                    <div class="image-container">
+                        <h3>Halo</h3>
+                        <img src="./img/GQ.webp" alt="Image">
+                    </div>
+                    <div class="GP1">
+                        <img src="./img/GQ1.avif" alt="Accessory">
+                    </div>
+                    <div class="GP2">
+                        <h2>Hear Clear With</h2>
+                        <P>Shor, No More!</P>
+                    </div>
+                </a>
+            </li>
+            <li>
+                <a href="" class="BD3">
+                    <div class="image-container">
+                        <h3>Opera ANC</h3>
+                        <img src="./img/GR.webp" alt="Image">
+                    </div>
+                    <div class="GP1">
+                        <img src="./img/GR1.avif" alt="Accessory">
+                    </div>
+                    <div class="GP2">
+                        <h2>Hear Clear With</h2>
+                        <P>HD Sound Just Got Ultra HD</P>
+                    </div>
+                </a>
+            </li>
+            <li>
+                <a href="" class="BD4">
+                    <div class="image-container">
+                        <h3>Dueto</h3>
+                        <img src="./img/GS.webp" alt="Image">
+                    </div>
+                    <div class="GS1">
+                        <img src="./img/GS1.avif" alt="Accessory">
+                    </div>
+                    <div class="GS2">
+                        <h2>Hear Clear With</h2>
+                        <P>Double Drivers. Double Details.</P>
+                    </div>
+                </a>
+            </li>
+        </div>
+    </div>
+
+
+
+    <div class="block3">
+        <div class="HC">
+            <h2>Hear Clear With</h2>
+        </div>
+
+        <div class="TD">
+            <img src="./img/3D.avif" alt="3D">
+        </div>
+
+        <div class="Li">
+            <img src="./img/Li.webp" alt="Live">
+        </div>
+
+        <div class="pera">
+            <p>Step into a new sound dimension with 3D Soundstage and hear each instrument clearly. 3D soundstage is Mivi’s signature sound profile that has been tuned in association with sound experts.</p>
+        </div>
+
+        <div class="BT">
+            <button>Explore More</button>
+        </div>
+    </div>
+
+
+
+    <div class="block4">
+        <h4>The Perfect Balance of Power and Clarity</h4>
+        <h2>Dolby Audio Fort Soundbars</h2>
+    </div>
+    
+    
+    
+    <div class="block5">
+        <div class="sub-block4">
+            <li>
+                <a href="" class="BD1">
+                    <div class="image-container">
+                        <h3>Fort H880</h3>
+                        <img src="./img/FC.webp" alt="Image">
+                    </div>
+                    <div class="GP1">
+                        <img src="./img/F1.svg" alt="Accessory">
+                    </div>
+                    <div class="GP2">
+                        <h2>Hear Clear With</h2>
+                        <P>Omini-directional Surround Sound</P>
+                    </div>
+                </a>
+            </li>
+            <li>
+                <a href="" class="BD2">
+                    <div class="image-container">
+                        <h3>Fort H750</h3>
+                        <img src="./img/FA.webp" alt="Image">
+                    </div>
+                    <div class="GP1">
+                        <img src="./img/F2.svg" alt="Accessory">
+                    </div>
+                    <div class="GP2">
+                        <h2>Hear Clear With</h2>
+                        <P>Dolby Cinematic Home Experience</P>
+                    </div>
+                </a>
+            </li>
+            <li>
+                <a href="" class="BD3">
+                    <div class="image-container">
+                        <h3>Fort Q700 D</h3>
+                        <img src="./img/FD.webp" alt="Image">
+                    </div>
+                    <div class="GP1">
+                        <img src="./img/F3.svg" alt="Accessory">
+                    </div>
+                    <div class="GP2">
+                        <h2>Hear Clear With</h2>
+                        <P>Power and Clarity</P>
+                    </div>
+                </a>
+            </li>
+            <li>
+                <a href="" class="BD4">
+                    <div class="image-container">
+                        <h3>Fort S660</h3>
+                        <img src="./img/FB.webp" alt="Image">
+                    </div>
+                    <div class="GS1">
+                        <img src="./img/F4.svg" alt="Accessory">
+                    </div>
+                    <div class="GS2">
+                        <h2>Hear Clear With</h2>
+                        <P>Power and Clarity</P>
+                    </div>
+                </a>
+            </li>
+        </div>
+    </div>
+
+    <div class="block6">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 800" width="50" height="50"><path d="M160 112c0-35.3 28.7-64 64-64s64 28.7 64 64l0 48-128 0 0-48zm-48 48l-64 0c-26.5 0-48 21.5-48 48L0 416c0 53 43 96 96 96l256 0c53 0 96-43 96-96l0-208c0-26.5-21.5-48-48-48l-64 0 0-48C336 50.1 285.9 0 224 0S112 50.1 112 112l0 48zm24 48a24 24 0 1 1 0 48 24 24 0 1 1 0-48zm152 24a24 24 0 1 1 48 0 24 24 0 1 1 -48 0z"/></svg>
+
+        <div class="lable">
+            <p>Shop By Categories</p>
+        </div>
+
+    </div>
+
+
+    <div class="block7">
+        <li>
+            <a href="">
+                <div class="box1">
+                        <img src="./img/NL.webp" alt="">
+                    <div class="txt1">
+                        <h2>New Launch</h2>
+                    </div>
+                </div>
+            </a>
+        </li>
+
+        <li>
+            <a href="">
+                <div class="box2">
+                    <img src="./img/TWS.webp" alt="">
+                    <div class="txt2">
+                        <h2>TWS Earbuds</h2>
+                    </div>
+                </div>
+            </a>
+        </li>
+
+        <li>
+            <a href="">
+                <div class="box3">
+                    <img src="./img/EP.webp" alt="">
+                    <div class="txt3">
+                        <h2>Earphones</h2>
+                    </div>
+                </div>
+            </a>
+        </li>
+
+        <li>
+            <a href="">
+                <div class="box4">
+                    <img src="./img/SH.webp" alt="">
+                    <div class="txt4">
+                        <h2>Soundbars and Home Theaters</h2>
+                    </div>
+                </div>
+            </a>
+        </li>
+
+        <li>
+            <a href="">
+                <div class="box5">
+                    <img src="./img/BT.webp" alt="">
+                        <div class="txt5">
+                            <h2>BT Speakers</h2>
+                        </div>
+                </div>
+            </a>
+        </li>
+
+    </div>
+
+
+    <div class="block8">
+        <div class="Himg">
+            <img src="./img/Ha.webp" alt="">
+            <h2>Our Customers Love Us</h2>
+        </div>
+
+        <div class="rew">
+            <div class="rew1">
+                <img src="./img/ll.png" alt="">
+                <p>Fort H160 is my first soundbar, so wanted to go for less pricy one. The Sound is loud with 160 watts, yet very clear. The woofer gives a premium look to my living room. It also has multiple EQ modes. Surprised at the value this soundbar gives for the price.</p>
+                <h2>|</h2>
+                <a href="">Navdeep</a>
+            </div>
+            <div class="rew2">
+                <img src="./img/ll.png" alt="">
+                <p>I was skeptical about buying Double Driver buds, but could feel a clear difference with SuperPods Dueto. It has a balanced bass and treble, making music sound more detailed than ever! They're my go-to buds during music practice.</p>
+                <h2>|</h2>
+                <a href="">Arvindo</a>
+            </div>
+            <div class="rew3">
+                <img src="./img/ll.png" alt="">
+                <p>I've been a Mivi user since a long time. DuoPods i7 has been my favourite, until I tried their latest SuperPods earbuds. They are a class-apart in advanced tech and cater to all my audio needs. Impressed as usual!</p>
+                <h2>|</h2>
+                <a href="">Ananya</a>
+            </div>
+        </div>
+    </div>
+
+
+
+    <div class="givem">
+        <h1>Never Miss A Beat</h1>
+        <p>Subscribe to stay updated with new product launches and exciting offers.</p>
+        <h3>We promise not to spam your inbox!</h3>
+        <div class="email">
+            <textarea name="contact[email]" id="email" type="email" placeholder="enter your email here"></textarea>
+            <button>Subscribe</button>
+        </div>
+    </div>
+
+
+    <footer class="footer1">
+            <div class="cntt">
+
+                <div class="fl1">
+                    <div class="cus">
+                        <h3>Customer Support</h3>
+                        <div class="whtt">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000" width="50" height="50" fill="green">
+                                <!--!Font Awesome Free 6.7.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2024 Fonticons, Inc.-->
+                                <path d="M380.9 97.1C339 55.1 283.2 32 223.9 32c-122.4 0-222 99.6-222 222 0 39.1 10.2 77.3 29.6 111L0 480l117.7-30.9c32.4 17.7 68.9 27 106.1 27h.1c122.3 0 224.1-99.6 224.1-222 0-59.3-25.2-115-67.1-157zm-157 341.6c-33.2 0-65.7-8.9-94-25.7l-6.7-4-69.8 18.3L72 359.2l-4.4-7c-18.5-29.4-28.2-63.3-28.2-98.2 0-101.7 82.8-184.5 184.6-184.5 49.3 0 95.6 19.2 130.4 54.1 34.8 34.9 56.2 81.2 56.1 130.5 0 101.8-84.9 184.6-186.6 184.6zm101.2-138.2c-5.5-2.8-32.8-16.2-37.9-18-5.1-1.9-8.8-2.8-12.5 2.8-3.7 5.6-14.3 18-17.6 21.8-3.2 3.7-6.5 4.2-12 1.4-32.6-16.3-54-29.1-75.5-66-5.7-9.8 5.7-9.1 16.3-30.3 1.8-3.7 .9-6.9-.5-9.7-1.4-2.8-12.5-30.1-17.1-41.2-4.5-10.8-9.1-9.3-12.5-9.5-3.2-.2-6.9-.2-10.6-.2-3.7 0-9.7 1.4-14.8 6.9-5.1 5.6-19.4 19-19.4 46.3 0 27.3 19.9 53.7 22.6 57.4 2.8 3.7 39.1 59.7 94.8 83.8 35.2 15.2 49 16.5 66.6 13.9 10.7-1.6 32.8-13.4 37.4-26.4 4.6-13 4.6-24.1 3.2-26.4-1.3-2.5-5-3.9-10.5-6.6z"/>
+                            </svg>
+                            <li>+ 918106192543</li>
+                        </div>
+                        <div class="ph">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000" width="50" height="50" fill="green">
+                                <!--!Font Awesome Free 6.7.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2024 Fonticons, Inc.-->
+                                <path d="M380.9 97.1C339 55.1 283.2 32 223.9 32c-122.4 0-222 99.6-222 222 0 39.1 10.2 77.3 29.6 111L0 480l117.7-30.9c32.4 17.7 68.9 27 106.1 27h.1c122.3 0 224.1-99.6 224.1-222 0-59.3-25.2-115-67.1-157zm-157 341.6c-33.2 0-65.7-8.9-94-25.7l-6.7-4-69.8 18.3L72 359.2l-4.4-7c-18.5-29.4-28.2-63.3-28.2-98.2 0-101.7 82.8-184.5 184.6-184.5 49.3 0 95.6 19.2 130.4 54.1 34.8 34.9 56.2 81.2 56.1 130.5 0 101.8-84.9 184.6-186.6 184.6zm101.2-138.2c-5.5-2.8-32.8-16.2-37.9-18-5.1-1.9-8.8-2.8-12.5 2.8-3.7 5.6-14.3 18-17.6 21.8-3.2 3.7-6.5 4.2-12 1.4-32.6-16.3-54-29.1-75.5-66-5.7-9.8 5.7-9.1 16.3-30.3 1.8-3.7 .9-6.9-.5-9.7-1.4-2.8-12.5-30.1-17.1-41.2-4.5-10.8-9.1-9.3-12.5-9.5-3.2-.2-6.9-.2-10.6-.2-3.7 0-9.7 1.4-14.8 6.9-5.1 5.6-19.4 19-19.4 46.3 0 27.3 19.9 53.7 22.6 57.4 2.8 3.7 39.1 59.7 94.8 83.8 35.2 15.2 49 16.5 66.6 13.9 10.7-1.6 32.8-13.4 37.4-26.4 4.6-13 4.6-24.1 3.2-26.4-1.3-2.5-5-3.9-10.5-6.6z"/>
+                            </svg>
+                            <li>+918099973333</li>
+                        </div>
+                        <div class="mal">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000" width="50" height="50" fill="green">
+                                <!--!Font Awesome Free 6.7.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2024 Fonticons, Inc.-->
+                                <path d="M380.9 97.1C339 55.1 283.2 32 223.9 32c-122.4 0-222 99.6-222 222 0 39.1 10.2 77.3 29.6 111L0 480l117.7-30.9c32.4 17.7 68.9 27 106.1 27h.1c122.3 0 224.1-99.6 224.1-222 0-59.3-25.2-115-67.1-157zm-157 341.6c-33.2 0-65.7-8.9-94-25.7l-6.7-4-69.8 18.3L72 359.2l-4.4-7c-18.5-29.4-28.2-63.3-28.2-98.2 0-101.7 82.8-184.5 184.6-184.5 49.3 0 95.6 19.2 130.4 54.1 34.8 34.9 56.2 81.2 56.1 130.5 0 101.8-84.9 184.6-186.6 184.6zm101.2-138.2c-5.5-2.8-32.8-16.2-37.9-18-5.1-1.9-8.8-2.8-12.5 2.8-3.7 5.6-14.3 18-17.6 21.8-3.2 3.7-6.5 4.2-12 1.4-32.6-16.3-54-29.1-75.5-66-5.7-9.8 5.7-9.1 16.3-30.3 1.8-3.7 .9-6.9-.5-9.7-1.4-2.8-12.5-30.1-17.1-41.2-4.5-10.8-9.1-9.3-12.5-9.5-3.2-.2-6.9-.2-10.6-.2-3.7 0-9.7 1.4-14.8 6.9-5.1 5.6-19.4 19-19.4 46.3 0 27.3 19.9 53.7 22.6 57.4 2.8 3.7 39.1 59.7 94.8 83.8 35.2 15.2 49 16.5 66.6 13.9 10.7-1.6 32.8-13.4 37.4-26.4 4.6-13 4.6-24.1 3.2-26.4-1.3-2.5-5-3.9-10.5-6.6z"/>
+                            </svg>
+                            <li> support@mivi.in</li>
+                        </div>
+                        <div class="os">
+                            <h2>Our Story</h2>
+                            <link href=""><li>About Us</li></link>
+                            <link href=""><li>Affiliate Program</li></link>
+                            <link href=""><li>Mivi Referral and Rewards</li></link>
+                        </div>
+                    </div>
+
+                    <div class="hel">
+                        <h3>Help</h3>
+                        <li>Return & Cancellation</li>
+                        <li>Warranty Guidelines</li>
+                        <li>Shipping & Delivery Policy</li>
+                        <li>Privacy Policy</li>
+                        <li>Product Registration</li>
+                        <li>Product Related Issues</li>
+                        <li>Track Order</li>
+                        <li>Terms and Conditions</li>    
+                    </div>
+
+                    <div class="sho">
+                        <h3>Shop</h3>
+                        <li>TWS Earbuds</li>
+                        <li>Soundbars and Home Theatre</li>
+                        <li>Neckband and Earphones</li>
+                        <li>Bluetooth Speakers</li>
+                        <li>Remote and Accessories</li>
+                        <li>Cables and Adapters</li>
+                        <li>New Launch</li>
+                        <li>Gifts for Diwali</li>
+                    </div>
+
+                    <div class="cor">
+                        <h3>CSR</h3>
+                        <li>Apply for Mentorship</li>
+                        
+                        <h3>Corporate Gifting</h3>
+                        <li>Corporate/ Bulk Order</li>
+                    </div>
+                </div>
+
+                <div class="fl2">
+                    <h3>Choose Earphones By</h3>
+                    <div class="link1">
+                        <li>Earphones with Mic</li>
+                        <li>Earphones with Neckband</li>
+                        <li>Neckband Earphones Under 1000</li>
+                        <li>Neckband Earphones Under 2000</li>
+                    </div>
+                </div>
+
+                <div class="fl3">
+                    <div class="arti">
+                        <h3>Articles</h3>
+                    </div>
+                    <div class="link2">
+                        <li>About Earbuds</li>
+                        <li>About Soundbars</li>
+                        <li>About Buying Guide</li>
+                        <li>About Deals</li>
+                        
+                    </div>
+                    <li>About Events</li>
+                </div>
+
+                <div class="fl4">
+                    <h3>Choose Earbuds By</h3>
+                    <div class="links">
+                        <div class="li1">
+                            <li>TWS Earbuds Under 1000</li>
+                            <li>TWS Earbuds Under 2000</li>
+                            <li>Low Latency Earbuds</li>
+                            <li>TWS Earbuds Under 4000</li>
+                        </div>
+                        <div class="li2">
+                            <li>TWS Earbuds Under 1200</li>
+                            <li>ENC Earbuds Under 2000</li>
+                            <li>Noise Cancelling Earbuds</li>
+                            <li>Waterproof Earbuds</li>
+                        </div>
+                        <div class="li3">
+                            <li>ANC Earbuds</li>
+                            <li>TWS Earbuds Under 3000</li>
+                            <li>TWS Earbuds for Gaming</li>
+                            <li>Customize Your Earbuds</li>
+                        </div>
+                        <div class="li4">
+                            <li>TWS Earbuds Under 1500</li>
+                            <li>TWS Earbuds Under 5000</li>
+                            <li>TWS Earbuds Under 2500</li>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="fl5">
+                    <h3>Choose Soundbars By</h3>
+                    <div class="lik">
+                        <div class="lik1">
+                            <li>Soundbars Under 10000</li>
+                            <li>Dolby Soundbars</li>
+                        </div>
+                        <div class="lik2">
+                            <li>Soundbars Under 10000</li>
+                            <li>Soundbars Under 20000</li>
+                        </div>
+                        <div class="subli">
+                            <li>Soundbars Under 5000</li>
+                            <li>Soundbars with Subwoofer</li>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="fl6">
+                    <h3>Choose Gifts By</h3>
+                    <div class="subli">
+                        <div class="li1">
+                            <li>Gifts for Diwali</li>
+                            <li>Gift for Girls</li>
+                        </div>
+                        <div class="li2">
+                            <li>Gifts for Sister</li>
+                            <li>Gifts Under 1000</li>
+                        </div>
+                        <div class="li3">
+                            <li>Gifts for Friend</li>
+                            <li>Gifts for Man</li>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+    </footer>
+
+    <footer class="footer2">
+        <h4>Follow us</h4>
+        <ul class="socm">
+            <li class="icon">
+                <a href="https://www.facebook.com/mivi.official/"><i class="fa fa-facebook-f" style="font-size:36px;color:white"></i></a>
+                <a href="https://www.instagram.com/mivi/"><i class="fa fa-instagram" style="font-size:36px;color:white"></i></a>
+                <a href="https://x.com/Mivi_Official"><i class="fa fa-twitter" style="font-size:36px;color:white"></i></a>
+                <a href="https://www.youtube.com/channel/UCHLJIjWSbFicL72lprhzmbw"><i class="fa fa-youtube-play" style="font-size:36px;color:white"></i></i></a>
+                <a href="https://www.linkedin.com/company/mivi/?originalSubdomain=in"><i class="fa fa-linkedin-square" style="font-size:36px;color:white"></i></a>
+            </li>
+        </ul>
+        <div class="cop">
+            <p>Copyright © 2024, MIVI - All rights reserved</p>
+        </div>
+
+    </footer>
+
+</body>
+<script src="./script/script.js"></script>
+</html>

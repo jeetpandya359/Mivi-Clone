@@ -1,0 +1,57 @@
+.d-none {
+  display: none;
+}
+.sk-captcha {
+  background-color: var(--formDesignBgColor);
+  width: 100%;
+  max-width: var(--formDesignFormWidth);
+  margin: auto;
+  color: var(--formDesignContentColor);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+  font-weight: 400;
+  line-height: 1.5;
+}
+.sk-captcha.blur {
+  -webkit-filter: blur(2px);
+  pointer-events: none;
+}
+.sk-captcha .sk-btn-success {
+  --btn-bg: #008060;
+  --btn-border-color: #008060;
+  --btn-color: #FFFFFF;
+  --btn-active-bg: var(--bs-color-primary-800);
+  --btn-active-color: #FFFFFF;
+  --btn-active-border-color: var(--bs-color-primary-800);
+  --btn-hover-bg: #006e52;
+  --btn-hover-color: #FFFFFF;
+  --btn-hover-border-color: #006e52;
+}
+.sk-captcha .sk-btn.sk-btn-success {
+  --btn-font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+  --btn-font-weight: 400;
+  --btn-font-style: normal;
+  --btn-line-height: 1;
+  --btn-border-radius: 4px;
+  --btn-font-size: 14px;
+  --btn-padding-x: 20px;
+  --btn-padding-y: 12px;
+  --btn-border-style: solid;
+  --btn-border-width: 1px;
+  background-color: var(--btn-bg);
+  font-family: var(--btn-font-family);
+  font-weight: var(--btn-font-weight);
+  font-style: var(--btn-font-style);
+  font-size: var(--btn-font-size);
+  line-height: var(--btn-line-height);
+  color: var(--btn-color);
+  border: var(--btn-border-width) var(--btn-border-style) var(--btn-border-color);
+  border-radius: var(--btn-border-radius);
+  padding: var(--btn-padding-y) var(--btn-padding-x);
+  transition: .25s ease all;
+  cursor: pointer;
+  text-decoration: none;
+  background-color: var(--formDesignSubmitBtnBgColor);
+  color: var(--formDesignSubmitBtnColor);
+  border-color: var(--formDesignSubmitBtnBorderColor);
+  width: 100%;
+}

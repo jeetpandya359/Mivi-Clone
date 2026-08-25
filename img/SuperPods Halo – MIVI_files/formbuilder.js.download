@@ -1,0 +1,1316 @@
+let shadow;
+class skFormBuilder extends HTMLElement{
+  hostBuilder() {
+    shadow = this.attachShadow({mode:'closed'});
+    shadow.appendChild(this.querySelector('style[sk-style]'));
+    shadow.appendChild(this.querySelector('div.sk-form'));
+  }
+
+  setAssets() {
+    const formDiv = this.querySelector('div.sk-form'),
+          linkElem = document.createElement("style"),
+          globalCss = this.querySelector('[sk-global-css]');
+
+    if (this.customization?.recaptcha_type == 'v3') {
+      const recaptchaScript = document.createElement("script");
+      recaptchaScript.id = 'recaptcha-scriptv3';
+      recaptchaScript.src = `https://www.google.com/recaptcha/api.js?render=${this.customization?.recaptcha_site_key}`;
+      recaptchaScript.setAttribute('async', true);
+      recaptchaScript.setAttribute('defer', true);
+      this.appendChild(recaptchaScript);
+    }
+
+    linkElem.setAttribute('sk-style', true);
+
+    linkElem.innerHTML = `.sk-form {
+      padding: 0 10px;
+    }
+    .sk-form.blur .row {
+      -webkit-filter: blur(2px);
+      pointer-events: none;
+    }
+    .sk-form-submitting {
+      display: block;
+      position: absolute;
+      top: 50%;
+      right: 50%;
+      z-index: 1;
+    }
+    .sk-form-submitting.hide {
+      display: none;
+    }
+    .sk-form-already-submitted-msg {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      color: green;
+      border: 2px solid green;
+      padding: 0px 15px;
+      border-radius: 6px;
+    }
+    .sk-success-message p {
+      color: green;
+      border: 2px solid green;
+      padding: 2px 8px;
+    }
+    .sk-error-message p {
+      border: 2px solid red;
+      color: red;
+      padding: 2px 8px;
+    }
+    .sk-success-message, 
+    .sk-error-message {
+      margin-bottom: 10px;
+    }
+    .sk-checkbox-required-msg,
+    .sk-rating-required-msg,
+    .sk-required-msg {
+      color: #F00;
+      font-size: 14px;
+    }
+    
+    * {
+      box-sizing: border-box;
+    }
+    .sk-btn-success {
+      --btn-bg: #008060;
+      --btn-border-color: #008060;
+      --btn-color: #FFFFFF;
+      --btn-active-bg: var(--bs-color-primary-800);
+      --btn-active-color: #FFFFFF;
+      --btn-active-border-color: var(--bs-color-primary-800);
+      --btn-hover-bg: #006e52;
+      --btn-hover-color: #FFFFFF;
+      --btn-hover-border-color: #006e52;
+    }
+    .sk-btn {
+      --btn-font-family: system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,"Noto Sans","Liberation Sans",sans-serif,"Apple Color Emoji","Segoe UI Emoji","Segoe UI Symbol","Noto Color Emoji";
+      --btn-font-weight: 400;
+      --btn-font-style: normal;
+      --btn-line-height: 1;
+      --btn-border-radius: 4px;
+      --btn-font-size: 14px;
+      --btn-padding-x: 20px;
+      --btn-padding-y: 12px;
+      --btn-border-style: solid;
+      --btn-border-width: 1px;
+      background-color: var(--btn-bg);
+      font-family: var(--btn-font-family);
+      font-weight: var(--btn-font-weight);
+      font-style: var(--btn-font-style);
+      font-size: var(--btn-font-size);
+      line-height: var(--btn-line-height);
+      color: var(--btn-color);
+      border: var(--btn-border-width) var(--btn-border-style) var(--btn-border-color);
+      border-radius: var(--btn-border-radius);
+      padding: var(--btn-padding-y) var(--btn-padding-x);
+      transition: .25s ease all;
+      cursor: pointer;
+      text-decoration: none;
+    }
+    .sk-btn:active {
+      background-color: var(--btn-active-bg);
+      color: var(--btn-active-color);
+      border-color: var(--btn-active-border-color);
+    }
+    .sk-btn:focus {
+      background-color: var(--btn-active-bg);
+      color: var(--btn-active-color);
+      border-color: var(--btn-active-border-color);
+      box-shadow: 0 0 04px var(--btn-hover-bg);
+    }
+    .sk-btn:hover {
+      background-color: var(--btn-hover-bg);
+      color: var(--btn-hover-color);
+      border-color: var(--btn-hover-border-color);
+    }
+    h1,h2,h3,h4,h5,h6 {
+      margin-top: 0;
+      margin-bottom: 1rem;
+    }
+    p {
+      margin-top: 1.2rem;
+      margin-bottom: 0;
+    }
+    p:first-child {
+      margin: 0;
+    }
+    
+    .sk-form-header {
+      margin-bottom: 2.2rem;
+    }
+    .sk-form-main {
+      background-color: var(--formDesignBgColor);
+      width: 100%;
+      max-width: var(--formDesignFormWidth);
+      margin: auto;
+      color: var(--formDesignContentColor);
+      font-family: system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,"Noto Sans","Liberation Sans",sans-serif,"Apple Color Emoji","Segoe UI Emoji","Segoe UI Symbol","Noto Color Emoji";
+      font-weight: 400;
+      line-height: 1.5;
+    }
+    .sk-form a {
+      color: var(--formDesignFormText); 
+    }
+    .sk-form label {
+      display: block;
+      margin-bottom: 3px;
+      color: var(--formDesignLabelColor);
+      font-family: system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,"Noto Sans","Liberation Sans",sans-serif,"Apple Color Emoji","Segoe UI Emoji","Segoe UI Symbol","Noto Color Emoji";
+      font-weight: 400;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+    .sk-form input[type="text"],
+    .sk-form input[type="number"],
+    .sk-form input[type="file"],
+    .sk-form input[type="email"],
+    .sk-form input[type="password"],
+    .sk-form input[type="number"],
+    .sk-form input[type="tel"],
+    .sk-form input[type="date"],
+    .sk-form input[type="time"],
+    .sk-form input[type="datetime-local"],
+    .sk-form input[type="url"],
+    .sk-form select,
+    .sk-form textarea {
+      border-radius: var(--formDesignInputRadius);
+      background-color: var(--formDesignInputBackground);
+      color: var(--formDesignFormText);
+      border: 1px solid var(--formDesignInputBorder);
+      padding: var(--formDesignVerticalSpacing) var(--formDesignHorizontalSpacing);
+      width: 100%;
+      font-family:inherit;
+    }
+    .sk-form .sk-form-main,
+    .sk-form label,
+    .sk-form button.sk-btn {
+      font-family:inherit;
+    }
+    .sk-form button {
+      background-color: var(--formDesignSubmitBtnBgColor);
+      color: var(--formDesignSubmitBtnColor);
+      border-color: var(--formDesignSubmitBtnBorderColor);
+    }
+    .sk-form button:hover {
+      background-color: var(--formDesignSubmitBtnBgColorHover);
+      color: var(--formDesignSubmitBtnColorHover);
+      border-color: var(--formDesignSubmitBtnBorderColorHover);
+    }
+    .sk-form input[type="text"]::placeholder,
+    .sk-form input[type="number"]::placeholder,
+    .sk-form input[type="file"]::placeholder,
+    .sk-form input[type="email"]::placeholder,
+    .sk-form input[type="password"]::placeholder,
+    .sk-form input[type="number"]::placeholder,
+    .sk-form input[type="tel"]::placeholder,
+    .sk-form input[type="date"]::placeholder,
+    .sk-form input[type="time"]::placeholder,
+    .sk-form input[type="datetime-local"]::placeholder,
+    .sk-form input[type="url"]::placeholder,
+    .sk-form select::placeholder,
+    .sk-form textarea::placeholder {
+      color: var(--formDesignInputPlaceholder);
+    }
+    .sk-form input[type="range"] {
+      width: 100%;
+    }
+    .sk-form input[type="radio"],
+    .sk-form input[type="checkbox"] {
+      border: 1px solid rgba(0,0,0,.25);
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      appearance: none;
+      -webkit-print-color-adjust: exact;
+      color-adjust: exact;
+      background-repeat: no-repeat;
+      background-position: center;
+      background-size: contain;
+      width: 15px;
+      height: 15px;
+    }
+    .sk-form input[type="radio"] {
+      border-radius: 35px;
+    }
+    .sk-form input[type="checkbox"]:checked {
+      background-color: var(--formDesignFormText);
+      background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3e%3cpath fill='none' stroke='%23fff' stroke-linecap='round' stroke-linejoin='round' stroke-width='3' d='M6 10l3 3l6-6'/%3e%3c/svg%3e");
+    }
+    .sk-form input[type="radio"]:checked {
+      background-color: var(--formDesignFormText);
+      background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'%3e%3ccircle r='2' fill='%23fff'/%3e%3c/svg%3e");
+    }
+    .sk-form .radio-wrapper label,
+    .sk-form .checkbox-wrapper label {
+      display: inline;
+      vertical-align: middle;
+    }
+    .sk-form .radio-wrapper label p,
+    .sk-form .checkbox-wrapper label p {
+      display: inline;
+    }
+    .sk-form .radio-wrapper input,
+    .sk-form .checkbox-wrapper input {
+      vertical-align: middle;
+    }
+    .sk-form .sk-input-info {
+      font-size: .75em;
+      color: var(--formDesignInputPlaceholder);
+      margin-top: 3px;
+    }
+    color-picker {
+      display: block;
+    }
+    color-picker input[type="color"] {
+      height: 43px;
+      width: 43px;
+      border-radius: 4px;
+      overflow: hidden;
+      margin-right: 10px;
+      transition: .25s ease all;
+      vertical-align: middle;
+      background: transparent;
+      border: 0;
+      padding: 0;
+    }
+    .sk-btn.sk-btn-success {
+      width: 100%;
+    }
+    .sk-form .mb-3 {
+      margin-bottom: 1.2rem;
+    }
+    .sk-form .row {
+      --bs-gutter-x: 1.5rem;
+      --bs-gutter-y: 0;
+      display: flex;
+      flex-wrap: wrap;
+      margin-right: -15px;
+      margin-left: -15px;
+    }
+    .sk-form .row > * {
+      flex-shrink: 0;
+      width: 100%;
+      max-width: 100%;
+      padding-right: 15px;
+      padding-left: 15px;
+    }
+    .sk-form .col-12 {
+      flex: 0 0 auto;
+      width: 100%;
+    }
+    .d-none {
+      display: none;
+    }
+    @media (min-width: 768px) {
+      .sk-form .col-md-6 {
+        flex: 0 0 auto;
+        width: 50%;
+      }
+      .sk-form .col-md-4 {
+        flex: 0 0 auto;
+        width:33.33%;
+      }
+    }
+    ${globalCss?.innerHTML}`;
+
+    this.appendChild(linkElem);
+    this.appendChild(formDiv);
+
+  }
+
+  constructor(){
+    super();
+
+    this.store_name = Shopify.shop;
+    this.mailData = [];
+    this.forms = null;
+    this.formData = this.querySelectorAll('[sk-forms]');
+    this.formsMain = this.querySelectorAll('[sk-form-block]');
+    this.submitBtn = null;
+    this.elements = null;
+    this.customization = window.skcustomization || {};
+    this.init();
+    this.setAssets();
+  }
+
+  checkWatermark = (Domain) => {
+    let fd = new FormData();
+    const that = this;
+    fd.append('shop', this.store_name);
+    fetch(`${Domain}getConfigurations`, {
+      method: 'POST',
+      headers: {
+        'Accept': 'application/json'
+      },
+      body: fd
+    })
+    .then(res => res.json())
+    .then(response => {
+      if (response.remove_watermark !== '1') {
+        let watermark = `<div class="sk-logo-wrapper" style=" height:auto !important; opacity: 0.8 !important;  visibility: visible !important;  transform: scale(1) !important; display:flex !important; justify-content: flex-end;">
+          <a href="https://www.squadkin.com/" ref="dofollow" target="_blank" style=" height:auto !important; opacity: 0.8 !important;  visibility: visible !important; display:flex !important; text-decoration: none;">
+            <span style=" height:auto !important;margin-right: 5px; font-size: 13px !important; opacity: 0.8 !important;  transform: scale(1) !important; display:inline !important;">
+              Powered By:
+            </span>
+            <img style="width: 75px !important; opacity: 0.8 !important; display:inline !important; height:auto !important;" src="https://formbuilder.magento2extensions.com/public/assets/images/squadkin_logo.png">
+          </a>
+        </div>`;
+        if (that.querySelector('.sk-logo-image')) {
+          that.querySelector('.sk-logo-image').innerHTML = watermark;
+        } else if (document.querySelector('.sk-logo-image')) {
+          document.querySelector('.sk-logo-image').innerHTML = watermark;
+        }
+      }
+      that.hostBuilder();
+    });
+  }
+
+  // renderCaptcha = () => {
+  //   if (window.skconfigurations.recaptcha_site_key !== undefined && window.skconfigurations.recaptcha_site_key !== null && window.skconfigurations.recaptcha_site_key !== '') {
+  //     window.onloadCallback = () => {
+  //       grecaptcha.render('sk-g-recaptcha', {
+  //         'sitekey' : window.skconfigurations.recaptcha_site_key
+  //       });
+  //     };
+  //     let script = document.createElement("script");
+  //     script.setAttribute('src', 'https://www.google.com/recaptcha/api.js?onload=onloadCallback&render=explicit');
+  //     script.setAttribute('async', 'true');
+  //     script.setAttribute('defer', 'true');
+  //     this.appendChild(script);
+
+  //     let script1 = document.createElement("script");
+  //     script1.setAttribute('src', 'https://www.gstatic.com/recaptcha/releases/rKbTvxTxwcw5VqzrtN-ICwWt/recaptcha__en.js');
+  //     script1.setAttribute('type', 'text/javascript');
+  //     script1.setAttribute('async', 'true');
+  //     script1.setAttribute('charset', 'utf-8');
+  //     script1.setAttribute('crossorigin', 'anonymous');
+  //     this.appendChild(script1);
+  //   }
+  // }
+
+  /*
+    Function for get current date
+  */
+  getCurrentDate = () => {
+    let date = new Date();
+    let year = date.getFullYear();
+    let month = String(date.getMonth() + 1).padStart(2, '0'); // Months are zero-indexed
+    let day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  getCurrentDateTime = () => {
+    let now = new Date();
+    let year = now.getFullYear();
+    let month = String(now.getMonth() + 1).padStart(2, '0');
+    let day = String(now.getDate()).padStart(2, '0');
+    let hours = String(now.getHours()).padStart(2, '0');
+    let minutes = String(now.getMinutes()).padStart(2, '0');
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+  }
+
+  setMinTime = () => {
+    let now = new Date();
+    let hours = String(now.getHours()).padStart(2, '0');
+    let minutes = String(now.getMinutes()).padStart(2, '0');
+    return `${hours}:${minutes}`;
+  }
+
+  checkMinDate = (input, errorElement, count) => {
+    let minDate = input.getAttribute('min');
+    if (minDate) {
+      let inputDate = new Date(input.value);
+      let minDateValue = new Date(minDate);
+      if (inputDate < minDateValue) {
+        count += 1;
+        errorElement.innerHTML = `The date must be after ${minDate}`;
+      } else {
+        errorElement.innerHTML = '';
+      }
+    }
+    return count;
+  }
+
+  checkDate = () => {
+    let dateInput = this.querySelectorAll('[sk-date]');
+    let count = 0;
+    if (dateInput) {
+      const that = this;
+      dateInput.forEach(curr => {
+        curr.addEventListener('input', () => {
+          let errorMessage = curr.nextElementSibling;
+          that.checkMinDate(curr, errorMessage, count);
+        });
+      });
+    }
+  }
+
+  correctCaptcha = (response, token) => {
+    if (response !== null) {
+      document.querySelector(`[sk-submit-btn][data-btn-token="${token}"]`).removeAttribute('disabled');
+    }
+  }
+
+  formAppend = (Domain) => {
+    this.formData.forEach(curr => {
+      if (curr.textContent.trim() != '') {
+        let res = JSON.parse(curr.textContent),
+            formName = res.form_name,
+            formData = JSON.parse(res.formData),
+            formSettingsData = JSON.parse(res.formSettingsData),
+            afterSubmissionData = JSON.parse(res.afterSubmissionAction),
+            formDesignData = JSON.parse(res.formDesign),
+            enable_recaptcha = res.enable_recaptcha,
+            previewHtml = `<input type="hidden" data-label="Form submitted from" sk-input-${res.form_token} name="Form submitted from" value="${window.location.href}">`,
+            // previewHtml = ``,
+            renderForm = '',
+            customCss = res.custom_css,
+            appendTo = this.querySelector(`[sk-form-block][data-token="${res.form_token}"]`);
+        if (formData && res.form_status == '1') {
+          formData.forEach(data => {
+            switch (data.type) {
+              case 'textarea':
+                previewHtml += `
+                <div 
+                  class="mb-3 
+                    ${data.inputWidth == "33" ? 'col-md-4' : ''}
+                    ${data.inputWidth == "50" ? 'col-md-6' : ''}
+                    ${data.inputWidth == "100" ? 'col-12' : ''}" data-id="${data.id}">
+                  ${data.label ? `<label for="sk-input-${data.id}">${(data.label != null ? data.label : '')}${data.required ? `<span style="color: red">*</span>` : ''}</label>` : ''}
+                  <textarea 
+                    name="${(data.label !== null && data.label !== '') ? data.label.replace(/[^a-zA-Z0-9]/g, '').toLowerCase() : 'textarea'}"
+                    rows="${(data.rows != null ? data.rows : '')}"
+                    cols="${(data.cols != null ? data.cols : '')}"
+                    id="sk-input-${data.id}"
+                    sk-input-${res.form_token}
+                    data-type="${data.type}"
+                    data-event="${data.event}"
+                    data-label="${data.label}"
+                    ${data.placeholder != '' && data.placeholder != null ? `placeholder="${data.placeholder}"` : ''}
+                    ${data.required ? 'required' : ''}
+                  />${(data.defaultValue != null ? data.defaultValue : '')}</textarea>
+                  ${data.inputBelowField ? `<div class="sk-input-info" sk-input-info data-id="${data.id}">${data.inputBelowField}</div>` : ''}
+                </div>`;
+                break;
+
+              case 'checkbox':
+                previewHtml += `
+                <div 
+                  class="mb-3
+                  ${data.inputWidth == "33" ? 'col-md-4' : ''}
+                  ${data.inputWidth == "50" ? 'col-md-6' : ''}
+                  ${data.inputWidth == "100" ? 'col-12' : ''}" data-id="${data.id}"
+                  sk-input-${res.form_token}
+                  data-type="${data.type}"
+                  data-label="${data.label}"
+                  data-required="${data.required ? `required` : ''}"
+                >
+                  ${data.label ? `<label>${data.label}${data.required ? `<span style="color: red">*</span>` : ''}</label>` : ''}`;
+
+                  data.options.forEach(curr => {
+                    if (curr.optionText !== '' && curr.optionText !== null) {
+                      previewHtml += `<div class="checkbox-wrapper">
+                        <input
+                          type="${data.type}" 
+                          name="${curr.optionText?.replace(/[^a-zA-Z0-9]/g, '').toLowerCase()}" 
+                          id="sk-input-${curr.id}"
+                          sk-checkbox
+                          class="${data.class}"
+                          value="${(curr.optionValue !== null && curr.optionValue !== '') ? curr.optionValue : curr.optionText?.toLowerCase().replace(/ /g, '_')}"
+                        />  
+                        <label for="sk-input-${curr.id}">${curr.optionText}</label>
+                      </div>`;
+                    }
+                  });
+                  
+                  previewHtml += `${data.inputBelowField ? `<div class="sk-input-info" sk-input-info data-id="${data.id}">${data.inputBelowField}</div>` : ''}
+                  <div class="sk-checkbox-required-msg" sk-checkbox-required-msg data-id="${data.id}"></div>
+                </div>`;
+                break;
+
+              case 'single_checkbox':
+                previewHtml += `
+                <div 
+                  class="mb-3 single-checkbox
+                    ${data.inputWidth == "33" ? 'col-md-4' : ''}
+                    ${data.inputWidth == "50" ? 'col-md-6' : ''}
+                    ${data.inputWidth == "100" ? 'col-12' : ''}"
+                    data-label="${data.label.replace(/<\/?[^>]+(>|$)/g, "")}" data-id="${data.id}" />
+                  <div class="checkbox-wrapper">
+                    <input
+                      type="checkbox" 
+                      name="${data.label.replace(/[^a-zA-Z0-9]/g, '').toLowerCase()}"
+                      id="sk-input-${data.id}"
+                      class="${data.class}"
+                      ${data.required ? `required` : ''}
+                    />
+                    ${data.label ? `<label class="input-title" for="sk-input-${data.id}">${data.label}${data.required ? `<span style="color: red">*</span>` : ''}</label>` : ''}
+                  </div>
+                  ${data.inputBelowField ? `<div class="sk-input-info" sk-input-info data-id="${data.id}">${data.inputBelowField}</div>` : ''}
+                </div>`;
+                break;
+
+              case 'heading':
+                previewHtml += `
+                <div
+                  class="mb-3" data-id="${data.id}">
+                    ${data.label}
+                  </div>`;
+                break;
+
+              case 'select':
+                previewHtml += `
+                <div 
+                  class="mb-3
+                    ${data.inputWidth == "33" ? 'col-md-4' : ''}
+                    ${data.inputWidth == "50" ? 'col-md-6' : ''}
+                    ${data.inputWidth == "100" ? 'col-12' : ''}" data-id="${data.id}">
+                  ${data.label ? `<label for="sk-input-${data.id}">${data.label}${data.required ? `<span style="color: red">*</span>` : ''}</label>` : ''}
+                  <select 
+                    name="${(data.label !== null && data.label !== '') ? data.label.replace(/[^a-zA-Z0-9]/g, '').toLowerCase() : 'select_name'}" 
+                    id="sk-input-${data.id}"
+                    class="${data.class}"
+                    ${data.required ? 'required' : ''}
+                    ${data.multiselect ? 'multiple' : ''}
+                    sk-input-${res.form_token}
+                    data-type="${data.type}"
+                    data-event="${data.event}"
+                    data-label="${data.label}"
+                    />`;
+                    data.options.forEach(curr => {
+                      if (curr.optionText !== '' && curr.optionText !== null) {
+                        previewHtml += `
+                          <option sk-options-value value="${(curr.optionValue !== null && curr.optionValue !== '') ? curr.optionValue : curr.optionText?.toLowerCase().replace(/ /g, '_')}" data-id="${curr.id}" ${(curr.default == true ? 'selected' : '')}>${curr.optionText}</option>
+                        `;
+                      }
+                    });
+                    previewHtml += `</select>
+                  ${data.inputBelowField ? `<div class="sk-input-info" sk-input-info data-id="${data.id}">${data.inputBelowField}</div>` : ''}
+                </div>`;
+                break;
+
+              case 'radio':
+                previewHtml += `
+                <div 
+                  class="mb-3
+                    ${data.inputWidth == "33" ? 'col-md-4' : ''}
+                    ${data.inputWidth == "50" ? 'col-md-6' : ''}
+                    ${data.inputWidth == "100" ? 'col-12' : ''}"
+                    sk-input-${res.form_token}
+                    data-type="${data.type}"
+                    data-label="${data.label}"
+                    data-id="${data.id}">
+                  ${data.label ? `<label for="sk-input-${data.id}">${data.label}${data.required ? `<span style="color: red">*</span>` : ''}</label>` : ''}`;
+                  data.options.forEach(curr => {
+                    if (curr.optionText !== '' && curr.optionText !== null) {
+                      previewHtml += `<div class="radio-wrapper">
+                        <input 
+                          type="${data.type}" 
+                          name="${data.label.replace(/[^a-zA-Z0-9]/g, '').toLowerCase()}" 
+                          id="sk-input-${curr.id}"
+                          class="${data.class}"
+                          value="${(curr.optionValue !== null && curr.optionValue !== '') ? curr.optionValue : curr.optionText?.toLowerCase().replace(/ /g, '_')}"
+                          data-event="${data.event}"
+                          sk-radio
+                          ${data.required ? `required` : ''}
+                        />
+                        <label for="sk-input-${curr.id}">${curr.optionText}</label>
+                      </div>`;
+                    }
+                  });
+                  previewHtml += `${data.inputBelowField ? `<div class="sk-input-info" sk-input-info data-id="${data.id}">${data.inputBelowField}</div>` : ''}
+                  </div>`;
+                break;
+            
+              case 'divider':
+                previewHtml += `
+                <div 
+                  class="mb-3
+                    ${data.inputWidth == "33" ? 'col-md-4' : ''}
+                    ${data.inputWidth == "50" ? 'col-md-6' : ''}
+                    ${data.inputWidth == "100" ? 'col-12' : ''}" data-id="${data.id}">
+                  <hr>
+                </div>`;
+                break;
+
+              case 'spacer':
+                previewHtml += `
+                <div 
+                  class="mb-3">
+                    <div class="sk-spacer"></div>
+                </div>`;
+                break;
+
+              case 'ratings':
+                previewHtml += `
+                <div 
+                  class="mb-3
+                    ${data.inputWidth == "33" ? 'col-md-4' : ''}
+                    ${data.inputWidth == "50" ? 'col-md-6' : ''}
+                    ${data.inputWidth == "100" ? 'col-12' : ''}" sk-stars data-id="${data.id}">
+                  ${data.label ? `<label for="sk-input-${data.id}">${data.label}${data.required ? `<span style="color: red">*</span>` : ''}</label>` : ''}
+                  <input type="hidden"
+                    sk-rating-value
+                    sk-input-${res.form_token}
+                    data-type="${data.type}"
+                    data-label="${data.label}"
+                    data-id="${data.id}"
+                    ${data.required ? 'required' : ''}>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-star-fill" viewBox="0 0 16 16" data-val="1" data-id="${data.id}"><path d="M3.612 15.443c-.386.198-.824-.149-.746-.592l.83-4.73L.173 6.765c-.329-.314-.158-.888.283-.95l4.898-.696L7.538.792c.197-.39.73-.39.927 0l2.184 4.327 4.898.696c.441.062.612.636.282.95l-3.522 3.356.83 4.73c.078.443-.36.79-.746.592L8 13.187l-4.389 2.256z"/></svg>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-star-fill" viewBox="0 0 16 16" data-val="2" data-id="${data.id}"><path d="M3.612 15.443c-.386.198-.824-.149-.746-.592l.83-4.73L.173 6.765c-.329-.314-.158-.888.283-.95l4.898-.696L7.538.792c.197-.39.73-.39.927 0l2.184 4.327 4.898.696c.441.062.612.636.282.95l-3.522 3.356.83 4.73c.078.443-.36.79-.746.592L8 13.187l-4.389 2.256z"/></svg>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-star-fill" viewBox="0 0 16 16" data-val="3" data-id="${data.id}"><path d="M3.612 15.443c-.386.198-.824-.149-.746-.592l.83-4.73L.173 6.765c-.329-.314-.158-.888.283-.95l4.898-.696L7.538.792c.197-.39.73-.39.927 0l2.184 4.327 4.898.696c.441.062.612.636.282.95l-3.522 3.356.83 4.73c.078.443-.36.79-.746.592L8 13.187l-4.389 2.256z"/></svg>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-star-fill" viewBox="0 0 16 16" data-val="4" data-id="${data.id}"><path d="M3.612 15.443c-.386.198-.824-.149-.746-.592l.83-4.73L.173 6.765c-.329-.314-.158-.888.283-.95l4.898-.696L7.538.792c.197-.39.73-.39.927 0l2.184 4.327 4.898.696c.441.062.612.636.282.95l-3.522 3.356.83 4.73c.078.443-.36.79-.746.592L8 13.187l-4.389 2.256z"/></svg>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-star-fill" viewBox="0 0 16 16" data-val="5" data-id="${data.id}"><path d="M3.612 15.443c-.386.198-.824-.149-.746-.592l.83-4.73L.173 6.765c-.329-.314-.158-.888.283-.95l4.898-.696L7.538.792c.197-.39.73-.39.927 0l2.184 4.327 4.898.696c.441.062.612.636.282.95l-3.522 3.356.83 4.73c.078.443-.36.79-.746.592L8 13.187l-4.389 2.256z"/></svg>
+                  ${data.inputBelowField != '' && data.inputBelowField != null ? `<div class="sk-input-info" sk-input-info data-id="${data.id}">${data.inputBelowField}</div>` : ''}
+                  <div class="sk-rating-required-msg" sk-rating-required-msg data-id="${data.id}"></div>
+                </div>`;
+                break;
+
+              case 'color':
+                previewHtml += `
+                <div 
+                  class="mb-3
+                    ${data.inputWidth == "33" ? 'col-md-4' : ''}
+                    ${data.inputWidth == "50" ? 'col-md-6' : ''}
+                    ${data.inputWidth == "100" ? 'col-12' : ''}" data-id="${data.id}">
+                  ${data.label ? `<label for="sk-input-${data.id}">${data.label}${data.required ? `<span style="color: red">*</span>` : ''}</label>` : ''}
+                  <color-picker>
+                    <input 
+                      type="${data.type}" 
+                      name="${data.label.replace(/[^a-zA-Z0-9]/g, '').toLowerCase()}" 
+                      id="sk-input-${data.id}"
+                      sk-input-${res.form_token}
+                      data-type="${data.type}"
+                      data-event="${data.event}"
+                      data-label="${data.label}"
+                      class="${data.class}"
+                      ${data.defaultValue != 'not-display' && data.defaultValue != '' && data.defaultValue != null ? `value="${data.defaultValue}"` : ''}
+                      ${data.placeholder != 'not-display' && data.placeholder != '' && data.placeholder != null ? `placeholder="${data.placeholder}"` : ''}
+                      ${data.required ? 'required' : ''}
+                    />
+                    <span class="color-value" data-value>${data.defaultValue ? data.defaultValue : '#000000'}</span>
+                  </color-picker>
+                  ${data.inputBelowField != '' && data.inputBelowField != null ? `<div class="sk-input-info" sk-input-info data-id="${data.id}">${data.inputBelowField}</div>` : ''}
+                </div>`;
+                break
+
+              case 'date':
+                previewHtml += `
+                <div 
+                  class="mb-3 field-default field--${data.type}
+                    ${data.inputWidth == "33" ? 'col-md-4' : ''}
+                    ${data.inputWidth == "50" ? 'col-md-6' : ''}
+                    ${data.inputWidth == "100" ? 'col-12' : ''}" data-id="${data.id}">
+                  ${data.label ? `<label for="sk-input-${data.id}">${data.label}${data.required ? `<span style="color: red">*</span>` : ''}</label>` : ''}
+                  <input 
+                    type="${data.type}" 
+                    name="${data.label.replace(/[^a-zA-Z0-9]/g, '').toLowerCase()}" 
+                    id="sk-input-${data.id}"
+                    class="${data.class}"
+                    sk-input-${res.form_token}
+                    sk-date
+                    data-id="${data.id}"
+                    data-type="${data.type}"
+                    data-event="${data.event}"
+                    data-label="${data.label}"
+                    ${data.disablepreviousdate != undefined ? data.disablepreviousdate !== false ? `min="${this.getCurrentDate()}"` : '' : ''}
+                    ${data.defaultValue != 'not-display' && data.defaultValue != '' && data.defaultValue != null ? `value="${data.defaultValue}"` : ''}
+                    ${data.placeholder != 'not-display' && data.placeholder != '' && data.placeholder != null ? `placeholder="${data.placeholder}"` : ''}
+                    ${data.required ? 'required' : ''}
+                    ${data.pattern != 'not-display' && data.pattern != '' && data.pattern != null ? `pattern="${data.pattern}"` : ''}
+                    ${data.min != 'not-display' && data.min != '' && data.min != null ? `min="${data.min}"` : ''}
+                    ${data.max != 'not-display' && data.max != '' && data.max != null ? `max="${data.max}"` : ''}
+                  />
+                  ${data.inputBelowField != '' && data.inputBelowField != null ? `<div class="sk-input-info" sk-input-info data-id="${data.id}">${data.inputBelowField}</div>` : ''}
+                  <div sk-error-message data-id="${data.id}" style="color: #F00"></div>
+                </div>`;
+                break;
+    
+              case 'datetime-local':
+                previewHtml += `
+                <div 
+                  class="mb-3 field-default field--${data.type}
+                    ${data.inputWidth == "33" ? 'col-md-4' : ''}
+                    ${data.inputWidth == "50" ? 'col-md-6' : ''}
+                    ${data.inputWidth == "100" ? 'col-12' : ''}" data-id="${data.id}">
+                  ${data.label ? `<label for="sk-input-${data.id}">${data.label}${data.required ? `<span style="color: red">*</span>` : ''}</label>` : ''}
+                  <input 
+                    type="${data.type}" 
+                    name="${data.label.replace(/[^a-zA-Z0-9]/g, '').toLowerCase()}" 
+                    id="sk-input-${data.id}"
+                    class="${data.class}"
+                    sk-input-${res.form_token}
+                    sk-date
+                    data-id="${data.id}"
+                    data-type="${data.type}"
+                    data-event="${data.event}"
+                    data-label="${data.label}"
+                    ${data.disablepreviousdate != undefined ? data.disablepreviousdate !== false ? `min="${this.getCurrentDateTime()}"` : '' : ''}
+                    ${data.defaultValue != 'not-display' && data.defaultValue != '' && data.defaultValue != null ? `value="${data.defaultValue}"` : ''}
+                    ${data.placeholder != 'not-display' && data.placeholder != '' && data.placeholder != null ? `placeholder="${data.placeholder}"` : ''}
+                    ${data.required ? 'required' : ''}
+                    ${data.pattern != 'not-display' && data.pattern != '' && data.pattern != null ? `pattern="${data.pattern}"` : ''}
+                    ${data.min != 'not-display' && data.min != '' && data.min != null ? `min="${data.min}"` : ''}
+                    ${data.max != 'not-display' && data.max != '' && data.max != null ? `max="${data.max}"` : ''}
+                  />
+                  ${data.inputBelowField != '' && data.inputBelowField != null ? `<div class="sk-input-info" sk-input-info data-id="${data.id}">${data.inputBelowField}</div>` : ''}
+                  <div sk-error-message data-id="${data.id}" style="color: #F00"></div>
+                </div>`;
+                break;
+
+              case 'text':
+                previewHtml += `
+                <div 
+                  class="mb-3
+                    ${data.inputWidth == "33" ? 'col-md-4' : ''}
+                    ${data.inputWidth == "50" ? 'col-md-6' : ''}
+                    ${data.inputWidth == "100" ? 'col-12' : ''}" data-id="${data.id}">
+                  ${data.label ? `<label for="sk-input-${data.id}">${data.label}${data.required ? `<span style="color: red">*</span>` : ''}</label>` : ''}
+                  <input 
+                    type="${data.type}" 
+                    name="${(data.label !== null && data.label !== '') ? data.label.replace(/[^a-zA-Z0-9]/g, '').toLowerCase() : `input_${data.id}`}" 
+                    id="sk-input-${data.id}"
+                    sk-input-${res.form_token}
+                    data-type="${data.type}"
+                    data-event="${data.event}"
+                    data-label="${data.label}"
+                    class="${data.class}"
+                    ${data.defaultValue != 'not-display' && data.defaultValue != '' && data.defaultValue != null ? `value="${data.defaultValue}"` : ''}
+                    ${data.placeholder != 'not-display' && data.placeholder != '' && data.placeholder != null ? `placeholder="${data.placeholder}"` : ''}
+                    ${data.required ? 'required' : ''}
+                    ${data.pattern != 'not-display' && data.pattern != '' && data.pattern != null ? `pattern="${data.pattern}"` : ''}
+                    ${data.patternError !== undefined ? data.patternError !== 'not-display' && data.patternError != '' && data.patternError != null ? `title="${data.patternError}"` : '' : ''}
+                  />
+                  ${data.inputBelowField != '' && data.inputBelowField != null ? `<div class="sk-input-info" sk-input-info data-id="${data.id}">${data.inputBelowField}</div>` : ''}
+                </div>`;
+                break;
+
+              case 'file':
+                previewHtml += `
+                <div 
+                  class="mb-3
+                    ${data.inputWidth == "33" ? 'col-md-4' : ''}
+                    ${data.inputWidth == "50" ? 'col-md-6' : ''}
+                    ${data.inputWidth == "100" ? 'col-12' : ''}" data-id="${data.id}">
+                  ${data.label ? `<label for="sk-input-${data.id}">${data.label}${data.required ? `<span style="color: red">*</span>` : ''}</label>` : ''}
+                  <input 
+                    type="${data.type}" 
+                    name="${(data.label !== null && data.label !== '') ? data.label.replace(/[^a-zA-Z0-9]/g, '').toLowerCase() : `input_${data.id}`}" 
+                    id="sk-input-${data.id}"
+                    sk-input-${res.form_token}
+                    data-type="${data.type}"
+                    data-event="${data.event}"
+                    data-label="${data.label}"
+                    data-id="${data.id}"
+                    class="${data.class}"
+                    ${data.required ? 'required' : ''}
+                    ${data.accept != '' && data.accept != null ? `accept="${data.accept}"` : `accept="image/jpeg, image/jpg, image/png"`}
+                  />
+                  ${data.inputBelowField != '' && data.inputBelowField != null ? `<div class="sk-input-info" sk-input-info data-id="${data.id}">${data.inputBelowField}</div>` : ''}
+                  <div class="sk-required-msg" sk-required-msg data-id="${data.id}"></div>
+                </div>`;
+                break;
+
+              default:
+                previewHtml += `
+                <div 
+                  class="mb-3
+                    ${data.inputWidth == "33" ? 'col-md-4' : ''}
+                    ${data.inputWidth == "50" ? 'col-md-6' : ''}
+                    ${data.inputWidth == "100" ? 'col-12' : ''}" data-id="${data.id}">
+                  ${data.label ? `<label for="sk-input-${data.id}">${data.label}${data.required ? `<span style="color: red">*</span>` : ''}</label>` : ''}
+                  <input 
+                    type="${data.type}" 
+                    name="${(data.label !== null && data.label !== '') ? data.label.replace(/[^a-zA-Z0-9]/g, '').toLowerCase() : `input_${data.id}`}" 
+                    id="sk-input-${data.id}"
+                    sk-input-${res.form_token}
+                    data-type="${data.type}"
+                    data-event="${data.event}"
+                    data-label="${data.label}"
+                    data-id="${data.id}"
+                    class="${data.class}"
+                    ${data.defaultValue != 'not-display' && data.defaultValue != '' && data.defaultValue != null ? `value="${data.defaultValue}"` : ''}
+                    ${data.placeholder != 'not-display' && data.placeholder != '' && data.placeholder != null ? `placeholder="${data.placeholder}"` : ''}
+                    ${data.required ? 'required' : ''}
+                    ${data.pattern != 'not-display' && data.pattern != '' && data.pattern != null ? `pattern="${data.pattern}"` : ''}
+                    ${data.min != 'not-display' && data.min != '' && data.min != null ? `min="${data.min}"` : ''}
+                    ${data.max != 'not-display' && data.max != '' && data.max != null ? `max="${data.max}"` : ''}
+                    ${data.accept != 'not-display' && data.accept != '' && data.accept != null ? `accept="${data.accept}"` : ''}
+                    ${data.minlength != 'not-display' && data.minlength != '' && data.minlength != null ? `minlength="${data.minlength}"` : ''}
+                    ${data.maxlength != 'not-display' && data.maxlength != '' && data.maxlength != null ? `maxlength="${data.maxlength}"` : ''}
+                    ${data.step != 'not-display' && data.step != '' && data.step != null ? `step="${data.step}"` : ''}
+                    ${data.size != 'not-display' && data.size != '' && data.size != null ? `size="${data.size}"` : ''}
+                  />
+                  ${data.inputBelowField != '' && data.inputBelowField != null ? `<div class="sk-input-info" sk-input-info data-id="${data.id}">${data.inputBelowField}</div>` : ''}
+                  <div class="sk-required-msg" sk-required-msg data-id="${data.id}"></div>
+                </div>`;
+                break;
+            }
+          });
+          this.cssVariables = '';
+          for (const property in formDesignData) {
+            var checkPx = false;
+            if(property == "formDesignFormWidth" || 
+              property == "formDesignHorizontalSpacing" ||
+              property == "formDesignInputRadius" ||
+              property == "formDesignVerticalSpacing"
+            ) { checkPx = true;}
+            this.cssVariables += `--${property}: ${formDesignData[property] ? (checkPx ? formDesignData[property].includes('px') ? formDesignData[property] : formDesignData[property]+'px' : formDesignData[property]) : null};`;
+          }
+          if (enable_recaptcha == '1' && this.customization?.recaptcha_type == 'v2' && this.customization?.recaptcha_site_key !== null && this.customization?.recaptcha_site_key !== undefined && this.customization?.recaptcha_site_key !== '') {
+            const globalCss = `<style>
+              .sk-captcha {
+                ${this.cssVariables}
+              }
+            </style>`;
+            document.head.insertAdjacentHTML('beforeend', globalCss);
+          }
+          renderForm = `<div class="sk-form-main">
+            <div class="sk-form-header">
+              ${(formSettingsData.formHeading != '' && formSettingsData.formHeading != null) ? `<h2>${formSettingsData.formHeading}</h2>` : ''}
+              ${(formSettingsData.formDescription != '' && formSettingsData.formDescription != null) ? `<span>${formSettingsData.formDescription}</span>` : ''}
+            </div>
+            <form class="sk-form" data-token="${res.form_token}">
+              <style>
+                .sk-form {${this.cssVariables}}
+                ${(customCss !== null && customCss !== undefined) ? customCss : ''}
+              </style>
+              <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" class="sk-form-submitting hide" width="40" height="40" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid" style="position: absolute;top: 50%;right: 50%;"><circle cx="50" cy="50" r="32" stroke-width="8" stroke="#85a2b6" stroke-dasharray="50.26548245743669 50.26548245743669" fill="none" stroke-linecap="round"><animateTransform attributeName="transform" type="rotate" dur="1s" repeatCount="indefinite" keyTimes="0;1" values="0 50 50;360 50 50"></animateTransform></circle><circle cx="50" cy="50" r="23" stroke-width="8" stroke="#bbcedd" stroke-dasharray="36.12831551628262 36.12831551628262" stroke-dashoffset="36.12831551628262" fill="none" stroke-linecap="round"><animateTransform attributeName="transform" type="rotate" dur="1s" repeatCount="indefinite" keyTimes="0;1" values="0 50 50;-360 50 50"></animateTransform></circle></svg>
+              <div class="sk-success-message" data-id="${res.form_token}"></div>
+              <div class="sk-error-message" data-id="${res.form_token}"></div>
+              <div class="row">
+                ${previewHtml}
+                <div class="mb-3">
+                  <button type="submit" class="sk-btn sk-btn-success ${enable_recaptcha == '1' && this.customization?.recaptcha_type == 'v2' && this.customization?.recaptcha_site_key !== null && this.customization?.recaptcha_site_key !== undefined && this.customization?.recaptcha_site_key !== '' ? 'd-none' : ''}" data-id="${res.form_token}" data-btn-txt="${formSettingsData.formSubmitBtnText}">${formSettingsData.formSubmitBtnText}</button>
+                </div>
+                ${enable_recaptcha == '1' && this.customization?.recaptcha_type == 'v2' && this.customization?.recaptcha_site_key !== null && this.customization?.recaptcha_site_key !== undefined && this.customization?.recaptcha_site_key !== '' ? 
+                '' : `<div class="sk-logo-image" style="opacity: 0.8 !important;  transform: scale(1) !important; visibility: visible !important; display:block !important;"></div>`}
+              </div>
+            </form>
+          </div>`;
+          appendTo.innerHTML = renderForm;
+          if (enable_recaptcha == '1' && this.customization?.recaptcha_type == 'v2' && this.customization?.recaptcha_site_key !== null && this.customization?.recaptcha_site_key !== undefined && this.customization?.recaptcha_site_key !== '') {
+            document.querySelector(`[sk-submit-btn][data-btn-token="${res.form_token}"]`).classList.remove('d-none');
+            document.querySelector(`.sk-captcha [data-recaptcha-token="${res.form_token}"]`).classList.remove('d-none');
+            document.querySelector(`[sk-submit-btn][data-btn-token="${res.form_token}"]`).innerHTML = formSettingsData.formSubmitBtnText;
+            let submitForm = this.querySelector(`form.sk-form button[data-id="${res.form_token}"]`);
+            setTimeout(() => {
+              grecaptcha.enterprise.render(document.querySelector(`[data-recaptcha-token="${res.form_token}"]`), {
+                'sitekey': window.skcustomization?.recaptcha_site_key,
+                'callback': (response) => this.correctCaptcha(response, res.form_token),
+              });
+            }, 1000);
+            document.querySelector(`[sk-submit-btn][data-btn-token="${res.form_token}"]`).addEventListener('click', () => {
+              submitForm.click();
+            });
+          }
+          // this.renderCaptcha();
+          this.checkWatermark(Domain);
+          this.ratingChange();
+          this.colorChange();
+          this.checkDate();
+        }
+      } else {
+        console.log("Invalid token");
+      }
+    });
+
+    this.forms = this.querySelectorAll('form.sk-form');
+    this.forms.forEach(curr => {
+      curr.addEventListener('submit', (e) => {
+        e.preventDefault();
+        if (this.customization?.recaptcha_type == 'v3') {
+          // grecaptcha.ready(function() {
+            // grecaptcha.execute(this.customization?.recaptcha_site_key, {action: 'submit'}).then(function(token) {
+              this.submitFormFun(Domain, curr);
+            // });
+          // });
+        } else {
+          this.submitFormFun(Domain, curr);
+        }
+      });
+    });
+  }
+
+  submitFormFun = (Domain, curr) => {
+    let count = 0;
+    let dateInput = curr.querySelectorAll('[sk-date]');
+    let checkDate = 0;
+    if (dateInput) {
+      dateInput.forEach(curr => {
+        let errorMessage = curr.nextElementSibling;
+        checkDate = this.checkMinDate(curr, errorMessage, count);
+        count = checkDate;
+      });
+    }
+    if (checkDate == 0) {
+      let token = curr.getAttribute('data-token'),
+          formFields = curr.querySelectorAll(`[sk-input-${token}]`),
+          fd = new FormData(),
+          ratingCount = 0,
+          checkboxCount = 0,
+          fileSizeCount = 0,
+          scriptData = this.querySelector(`[sk-forms][data-id="${token}"]`).textContent,
+          customerFname = '',
+          customerFnameLabel = (JSON.parse(scriptData).customer_tags !== undefined) ? JSON.parse(JSON.parse(scriptData).customer_tags).cusromer_f_name !== undefined ? JSON.parse(JSON.parse(scriptData).customer_tags).cusromer_f_name : '' : '',
+          customerLname = '',
+          customerLnameLabel = (JSON.parse(scriptData).customer_tags !== undefined) ? JSON.parse(JSON.parse(scriptData).customer_tags).cusromer_l_name !== undefined ? JSON.parse(JSON.parse(scriptData).customer_tags).cusromer_l_name : '' : '',
+          customerEmail = '',
+          customerEmailLabel = (JSON.parse(scriptData).customer_tags !== undefined) ? JSON.parse(JSON.parse(scriptData).customer_tags).cusromer_email !== undefined ? JSON.parse(JSON.parse(scriptData).customer_tags).cusromer_email : '' : '',
+          customerTags = (JSON.parse(scriptData).customer_tags !== undefined) ? JSON.parse(JSON.parse(scriptData).customer_tags) : '{"allowCustomerTag":"0","customerTag":[]}';
+
+      curr.classList.add('blur');
+      document.querySelector('.sk-captcha')?.classList.add('blur');
+      curr.querySelector(`.sk-form-submitting`).classList.remove('hide');
+      fd.append('shop', this.store_name);
+      fd.append('token', token);
+      fd.append('customertags', (JSON.stringify(customerTags.customerTag)));
+      formFields.forEach(field => {
+        let type = field.getAttribute('data-type'),
+            label = field.getAttribute('data-label'),
+            id = field.getAttribute('data-id');
+        switch (type) {
+          case 'file':
+            let file = field.files[0];
+            if (file) {
+              let allowImageSize = this.customization ? this.customization.allow_image_size !== undefined ? this.customization.allow_image_size : 2 : 2,
+                  allowVideoSize = this.customization ? this.customization.allow_video_size !== undefined ? this.customization.allow_video_size : 5 : 5,
+                  fileType = file.type,
+                  fileSizeMB = file.size / (1024 * 1024),
+                  errorMsgElem = curr.querySelector(`[sk-required-msg][data-id="${id}"]`);
+              if (fileType.startsWith('video/')) {
+                if (fileSizeMB <= allowVideoSize) {
+                  fd.append(label, field.files[0]);
+                  errorMsgElem.innerHTML = '';
+                } else {
+                  fileSizeCount += 1;
+                  errorMsgElem.innerHTML = `File size must be less then ${allowVideoSize}MB for video uploads.`;
+                  field.scrollIntoView({behavior: 'smooth', block: 'start', inline: 'start'});
+                }
+              } else {
+                if (fileSizeMB <= allowImageSize) {
+                  fd.append(label, field.files[0]);
+                  errorMsgElem.innerHTML = '';
+                } else {
+                  fileSizeCount += 1;
+                  errorMsgElem.innerHTML = `File size must be less then ${allowImageSize}MB for uploads.`;
+                  field.scrollIntoView({behavior: 'smooth', block: 'start', inline: 'start'});
+                }
+              }
+            }
+            break;
+
+          case 'email':
+            fd.append('customer_email', field.value);
+            fd.append(label, field.value);
+            customerFname = customerFname == '' ? customerFnameLabel == label ? field.value : '' : customerFname;
+            customerLname = customerLname == '' ? customerLnameLabel == label ? field.value : '' : customerLname;
+            customerEmail = customerEmailLabel == '' ? field.value : (customerEmailLabel === label ? field.value : '');
+            break;
+
+          case 'select':
+            let selectOptions = field.querySelectorAll('[sk-options-value]'),
+                selectData = [];
+            selectOptions.forEach(curr => {
+              (curr.selected == true) ? selectData.push(curr.value) : '';
+            });
+            fd.append(label, selectData);
+            break;
+
+          case 'checkbox':
+            let checkboxField = field.querySelectorAll('[sk-checkbox]'),
+                checkboxRequired = field.getAttribute('data-required'),
+                checkboxData = [];
+            if (checkboxRequired == 'required') {
+              var checkboxes = field.querySelectorAll('[sk-checkbox]:checked');
+              if (checkboxes.length == 0) {
+                curr.querySelector(`[sk-checkbox-required-msg][data-id="${id}"]`).innerHTML = 'This field is required.';
+                checkboxCount += 1;
+              } else {
+                checkboxField.forEach(cd => {
+                  (cd.checked == true) ? checkboxData.push(cd.value) : '';
+                });
+                curr.querySelector(`[sk-checkbox-required-msg][data-id="${id}"]`).innerHTML = '';
+                checkboxCount = 0;
+                fd.append(label, JSON.stringify(checkboxData));
+              }
+            } else {
+              curr.querySelector(`[sk-checkbox-required-msg][data-id="${id}"]`).innerHTML = '';
+              checkboxCount = 0;
+              checkboxField.forEach(cd => {
+                (cd.checked == true) ? checkboxData.push(cd.value) : '';
+              });
+              fd.append(label, JSON.stringify(checkboxData));
+            }
+            break;
+
+          case 'radio':
+            var radioButton = field.querySelectorAll('[sk-radio]');
+            radioButton.forEach(curr => {
+              if (curr.checked == true) {
+                fd.append(label, curr.value);
+                return;
+              }
+            });
+            break;
+
+          case 'single_checkbox':
+            let singlecheckboxField = field.querySelector('[sk-single-checkbox]');
+            fd.append(label, (singlecheckboxField.checked == true) ? true : false);
+            break;
+
+          case 'ratings':
+            if (field.hasAttribute('required') && field.value == '') {
+              ratingCount += 1;
+              curr.querySelector(`[sk-rating-required-msg][data-id="${id}"]`).innerHTML = 'This field is required.';
+              curr.classList.remove('blur');
+              document.querySelector('.sk-captcha')?.classList.remove('blur');
+              curr.querySelector(`.sk-form-submitting`).classList.add('hide');
+            } else {
+              curr.querySelector(`[sk-rating-required-msg][data-id="${id}"]`).innerHTML = '';
+            }
+            fd.append(label, field.value)
+            break;
+        
+          case 'tel':
+            fd.append('customer_phone', field.value);
+            fd.append(label, field.value);
+            break;
+
+          default:
+            fd.append(label, field.value);
+            customerFname = customerFname == '' ? customerFnameLabel == label ? field.value : '' : customerFname;
+            customerLname = customerLname == '' ? customerLnameLabel == label ? field.value : '' : customerLname;
+            customerEmail = customerEmail == '' ? customerEmailLabel == label ? field.value : '' : customerEmail;
+            break;
+        }
+      });
+      if (ratingCount == 0 && checkboxCount == 0 && fileSizeCount == 0) {
+        fetch(`${Domain}saveResponse`, {
+          method: 'POST',
+          headers: {
+            'Accept': 'application/json'
+          },
+          body: fd
+        })
+        .then(res => res.json())
+        .then(response => {
+          if (response.error == undefined) {
+            curr.querySelector('.sk-error-message').innerHTML = '';
+            curr.classList.remove('blur');
+            document.querySelector('.sk-captcha')?.classList.remove('blur');
+            curr.querySelector(`.sk-form-submitting`).classList.add('hide');
+            let afterSubmissionAction = JSON.parse(JSON.parse(scriptData).afterSubmissionAction).formSubmissionAfterAction,
+                afterSubmissionMessage = JSON.parse(JSON.parse(scriptData).afterSubmissionAction).formSubmissionAfterMessage,
+                redirectURL = JSON.parse(JSON.parse(scriptData).afterSubmissionAction).formSubmissionAfterUrl,
+                gtmTags = (JSON.parse(scriptData).gtm_events !== undefined) ? JSON.parse(scriptData).gtm_events : null,
+                redirectPage = 0;
+            if (gtmTags !== '' && gtmTags !== null) {
+              this.checkGemEvent(gtmTags);
+            }
+            switch (afterSubmissionAction) {
+              case "clearAndPrevent":
+                localStorage.setItem('skFormSubmitted', true);
+                this.formsMain.forEach(curr => {
+                  if (curr.dataset.token == token) {
+                    curr.remove();
+                  }
+                })
+                break;
+  
+              case "clearAndAllow":
+                let stars = curr.querySelectorAll('.bi-star-fill'),
+                    starInput = curr.querySelectorAll('[sk-rating-value]');
+                if (stars) {
+                  stars.forEach(curr => {
+                    curr.classList.remove('selected');
+                    curr.setAttribute('fill', 'currentColor');
+                  });
+                }
+                if (starInput) {
+                  starInput.forEach(curr => {
+                    curr.value = '';
+                  });
+                }
+                curr.reset();
+
+                curr.querySelector('.sk-success-message').innerHTML = (afterSubmissionMessage != null) ? afterSubmissionMessage : '<p>Form Submitted Successfully!!</p>';
+                curr.querySelector('.sk-success-message').scrollIntoView({behavior: 'smooth', block: 'start', inline: 'start'});
+                break;
+  
+              case "redirect":
+                redirectPage += 1;
+                break;
+  
+              case "hideAndmessage":
+                curr.querySelector('.row').style.display = 'none';
+                curr.querySelector('.sk-success-message').innerHTML = (afterSubmissionMessage != null) ? afterSubmissionMessage : '<p>Form submitted</p>';
+                curr.querySelector('.sk-success-message').scrollIntoView({behavior: 'smooth', block: 'start', inline: 'start'});
+                break;
+            
+              default:
+                break;
+            }
+            this.sendMail(response, Domain, this.store_name, token);
+            if (customerTags.allowCustomerTag == '1' && customerTags.customerTag.length > 0 && customerEmail !== '') {
+              this.addcustomertags(Domain, customerFname, customerLname, customerEmail, customerTags.customerTag);
+            }
+            // this.afterSubmission(scriptData);
+            try {
+              if (JSON.parse(JSON.parse(scriptData).afterSubmissionAction).formSubmissionAfterMessageJs != null) {
+                eval(JSON.parse(JSON.parse(scriptData).afterSubmissionAction).formSubmissionAfterMessageJs);
+              }
+            } catch (error) {
+              console.log(error);
+            }
+            if (redirectPage !== 0) {
+              setTimeout(() => {
+                window.location.href = redirectURL;
+              }, 2000);
+            }
+          } else {
+            curr.querySelector('.sk-error-message').innerHTML = `<p>${response.error}</p>`;
+            curr.classList.remove('blur');
+            document.querySelector('.sk-captcha')?.classList.remove('blur');
+            curr.querySelector(`.sk-form-submitting`).classList.add('hide');
+            curr.querySelector('.sk-error-message').scrollIntoView({behavior: 'smooth', block: 'start', inline: 'start'});
+          }
+        })
+      } else {
+        curr.classList.remove('blur');
+        document.querySelector('.sk-captcha')?.classList.remove('blur');
+        curr.querySelector(`.sk-form-submitting`).classList.add('hide');
+      }
+    }
+  }
+
+  checkGemEvent = (gtmTags) => {
+    let gtagData = JSON.parse(gtmTags);
+    if (gtagData.allowGtag == '1') {
+      if (typeof gtag === 'function') {
+        gtag('event', gtagData.gtagEvent);
+      }
+    }
+
+    if (gtagData.allowFbq == '1') {
+      if (typeof fbq === 'function') {
+        fbq('track_custom', gtagData.fbqEvent);
+      }
+    }
+  }
+
+  sendMail = (response, Domain, shop, token) => {
+    let fd = new FormData();
+    fd.append('shop', shop);
+    fd.append('token', token);
+    fd.append('admin_email', JSON.stringify(response.admin_email));
+    fd.append('admin_email_subject', response.admin_email_subject);
+    fd.append('configurations', JSON.stringify(response.configurations));
+    fd.append('customer_email', response.customer_email);
+    fd.append('customer_name', response.customer_name);
+    fd.append('file', JSON.stringify(response.file));
+    fd.append('form', JSON.stringify(response.form));
+    fd.append('fromMail', response.fromMail);
+    fd.append('fromName', response.fromName);
+    fd.append('key_data', response.key_data);
+    fd.append('key_value', response.key_value);
+    fd.append('mail_data', JSON.stringify(response.mail_data));
+    fd.append('remove_watermark', response.remove_watermark);
+    fd.append('response_tag', JSON.stringify(response.response_tag));
+    fd.append('responses', JSON.stringify(response.responses));
+    fd.append('shop_data', JSON.stringify(response.shop_data));
+    fetch(`${Domain}sendMailFun`, {
+      method: 'POST',
+      headers: {
+        'Accept': 'application/json'
+      },
+      body: fd
+    })
+    .then(res => res.json())
+    .then(response => {
+    });
+  }
+
+  addcustomertags = (Domain, customerFname, customerLname, customerEmail, customerTags) => {
+    let fd = new FormData();
+    fd.append('shop', this.store_name);
+    fd.append('fname', customerFname);
+    fd.append('lname', customerLname);
+    fd.append('email', customerEmail);
+    fd.append('tags', customerTags);
+    fetch(`${Domain}checkCustomers`, {
+      method: 'POST',
+      headers: {
+        'Accept': 'application/json'
+      },
+      body: fd
+    })
+    .then(res => res.json())
+    .then(response => {
+    });
+  }
+
+  colorChange = () => {
+    this.inputField = this.querySelector('input[type="color"]');
+    this.textValue = this.querySelector('[data-value]');
+    if (this.inputField) {
+      this.inputField.addEventListener('input', (e) => {
+        let currValue = e.currentTarget.value;
+        this.textValue.textContent = currValue;
+      });
+    }
+  }
+
+  ratingChange = () => {
+    let stars = this.querySelectorAll('[sk-stars]');
+    stars.forEach((currStar) => {
+      let id = currStar.getAttribute('data-id'),
+          starChange = this.querySelectorAll(`[data-id="${id}"].bi-star-fill`);
+      starChange.forEach((curr, index) => {
+        curr.addEventListener('mouseover', () => {
+          starChange.forEach((curr, starInd) => {
+            if (starInd <= index) {
+              curr.setAttribute('fill', 'orange');
+            }
+          });
+        });
+  
+        curr.addEventListener('mouseout', () => {
+          starChange.forEach(curr => {
+            if (!curr.classList.contains('selected')) {
+              curr.setAttribute('fill', 'currentColor');
+            }
+          });
+        });
+
+        curr.addEventListener('click', () => {
+          starChange.forEach(curr => {
+            curr.classList.remove('selected');
+          });
+          starChange.forEach((curr, starInd) => {
+            if (starInd <= index) {
+              curr.classList.add('selected');
+              curr.setAttribute('fill', 'orange');
+            }
+          });
+          currStar.querySelector(`[sk-rating-value]`).value = curr.getAttribute('data-val');
+        })
+      });
+    });
+  }
+
+  afterSubmission = (scriptData) => {
+    try {
+      if (JSON.parse(JSON.parse(scriptData).afterSubmissionAction).formSubmissionAfterMessageJs != null) {
+        eval(JSON.parse(JSON.parse(scriptData).afterSubmissionAction).formSubmissionAfterMessageJs);
+      }
+    } catch (error) {
+      console.log(error);
+    }
+  }
+
+  init = () => {
+    this.formAppend('https://formbuilder.magento2extensions.com/api/');
+  }
+}
+customElements.define('sk-form', skFormBuilder);

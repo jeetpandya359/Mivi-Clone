@@ -1,0 +1,2448 @@
+let DEFAULT_addToCartBtnSelectorsApp4Ext = 'input[name="add"], button[name="add"], form[action*="/cart/add"] input[type="submit"], form[action*="/cart/add"] button[type="submit"], form[action*="/cart/add"] button:not([type="button"]), form[action*="/cart/add"] .gbbExt__add-to-cart';
+let DEFAULT_checkoutBtnSelectorsApp4Ext = 'button[name="checkout"], input[name="checkout"], form[action*="/cart"] a[href="/checkout"], a[href="/checkout"], form[action="/cart"] input[type="submit"][name="checkout"], form[action="/cart"] button[type="submit"][name="checkout"]';
+let DEFAULT_quantityBtnSelectorsApp4Ext = '.ajaxcart__qty,quantity-input .quantity,.product-form__input, .product-form__quantity ';
+let DEFAULT_sideCartSelectorsApp4Ext = '.cart-notification,cart-notification,.cart-notification-wrapper,#cart-notification, #CartDrawer, .drawer, .drawer-cover, .Drawer';
+let DEFAULT_buyNowBtnApp4Ext = '.shopify-payment-button__button, .shopify-payment-button__button--unbranded';
+let DEFAULT_cartFormApp4Ext = 'form[action="/cart"], form[action="/cart/"], form[action="cart"]';
+//for cart integration
+let DEFAULT_cartItemSelectorAppExt = ".cart-item";
+let DEFAULT_cartItemRemoveParentSelectorAppExt = "cart-remove-button";
+let DEFAULT_cartItemRemoveSelectorAppExt = "";
+let DEFAULT_cartItemQuantityBtnSelectorsAppExt = ""; 
+var gbbExtUtils = {
+    f: {}
+}
+window.gbbExtUtils = gbbExtUtils;
+//gbbExt.utility.debugConsole
+
+
+/*
+*fn(param1, param2) =>   
+*param1 is url of script that we suppose to load 
+*param2 is function that should be called after script is loaded 
+*/
+gbbExtUtils.f.checkBundleBuilderProduct = function () {
+    let isBundleBuilderProduct = false;
+    let or
+    if(
+        (meta && meta.product && meta.product.type && meta.product.type.includes("Bundle"))  || 
+        (meta && meta.product && meta.product.vendor && meta.product.vendor.includes("Bundle"))
+        ){
+            return true;
+    }
+    return false;
+}
+
+
+gbbExtUtils.f.loadScript = function (a, b) {
+    var c = document.createElement("script");
+    c.type = "text/javascript";
+    c.src = a;
+    document.getElementsByTagName("head")[0].appendChild(c)
+    c.onload = function () { b() };
+};
+
+/*
+* we changed loadScript function - if else block for onload is removed as it was not making sense
+*fn(param1) =>  
+*param1 - represents function that should be executed once jquery is loaded 
+*https://www.w3schools.com/jquery/jquery_noconflict.asp
+*/
+gbbExtUtils.f.loadJquery = function (b) {
+    // gbbExt.utility.debugConsole("does this work");
+    let flag = false;
+    if("undefined" === typeof jQuery || 1.9 > parseFloat(jQuery.fn.jquery)){
+        flag = true;
+    }
+    if("undefined" != typeof jQuery && jQuery.post == undefined){
+        flag = true;
+    }
+
+    if(flag){
+        gbbExtUtils.f.loadScript("https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js", function () {
+            gbbExtJquery = jQuery.noConflict(!0);
+            b(gbbExtJquery)
+        })
+    }else{
+        b(jQuery);
+    }
+};
+
+var gbbExt = {
+    debug: [],
+    version: 1.2,
+    state: {
+        submitted: "",
+        product_added: "",
+        page_type: "",
+        insertWrapperOnPage: [],
+        cartData: undefined,
+        isOverWriteBuyNowBtnTriggered: false,
+        timer: undefined,
+        freeGiftcardPopupModalTriggered: false,
+        atleastOneProduct:{},
+        CONSTANT_DEBUG_FLAG: undefined,
+    },
+    constants: {
+        themesIds: {
+            DAWN_THEME: 887,
+            VENTURE_THEME: 775,
+            EXPRESS_THEME: 885,
+            CRAVE_THEME: 1363,
+            SENSE_THEME: 1356,
+            CRAFT_THEME: 1368,
+        }
+    },
+    importExternalScript: async function (scriptName) {
+        switch (scriptName) {
+            case "date-flatpickr":
+                await new Promise(function (resolve, reject) {
+                    try{                                                                
+                        document.body.appendChild(document.createElement('script')).src = 'https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js';
+
+                        //attach a link tag for css 
+                        // var link = document.createElement('link');
+                        // link.rel = 'stylesheet';
+                        // link.href = 'https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/material_blue.css';
+                        // document.head.appendChild(link);
+                        //delay the resolve by 1 second
+                        setTimeout(function () {
+                            gbbExt.utility.debugConsole("resolved just now");
+                            resolve();
+                        }, 1000); 
+                    }catch(e){
+                        gbbExt.utility.debugConsole(e);
+                        reject();
+                    }
+                });
+            break;
+        }
+    },
+    settings: {}, //object from function
+    selectors: {},
+    cartInterval: "",
+    productinterval: "",
+    f: {
+        bootstrap: function (settings) {
+            console.log("bootstap");
+            
+            gbbExt.f.initThemeCSS();
+            gbbExt.f.globalListener(settings)
+
+        },
+        initThemeCSS: function (){
+        },
+        getSettings: async function () {
+            //promise
+            gbbExt.utility.debugConsole("GET setting of giftboxbuilder ext fired")
+            
+            return new Promise(function (resolve, reject) {
+        
+                gbbExt.utility.debugConsole("fetching from s3");
+                gbbExt.f.getSettingsFromS3().then(
+                    success => {
+                        resolve(success);
+                    }
+                ).catch(error => {
+                    gbbExt.utility.debugConsole("error in s3 fetch. Now fetching from /builderlink", error);
+                    fetch("/apps/gbb/builderlink",{
+                    method: 'GET',
+                    }).then(
+                        response => response.json() // if the response is a JSON object
+                    ).then(
+                        success => {
+                            if(success.responseCode == 200){
+                                gbbExt.utility.debugConsole("success-data", success.data);
+                            }
+                            resolve(success.data);
+                        }
+                    ).catch(error => {
+                        gbbExt.utility.debugConsole(error) // Handle the error response object
+                        reject(error)
+                       
+                    });
+            });
+        });    
+        },
+        getSettingsFromS3: async function () {
+            //promise
+            let shopName = window.Shopify.shop
+            // gbbExt.utility.debugConsole("GET setting of easybundles pro fired")
+            return new Promise(function (resolve, reject) {
+                fetch(`https://gift-box-builder-app4.s3.us-east-2.amazonaws.com/tempCartSettings/${shopName}.json?nocache=${(new Date()).getTime()}`,{
+                    method: 'GET',
+                    }).then(
+                        response => response.json() // if the response is a JSON object
+                    ).then(
+                        success => {
+                            if(success.responseCode == 200){
+                                gbbExt.utility.debugConsole("success-data", success);
+                            }
+                            resolve(success);
+                        }
+                    ).catch(error => {
+                        gbbExt.utility.debugConsole(error) // Handle the error response object
+                        reject(error)
+                        })
+                    })
+        },
+
+        setSettings: function(tmpCartSettings){
+            var cart_settings = {
+                SERVER_URL: tmpCartSettings.SERVER_URL,
+                app: {
+                    disableApp: tmpCartSettings.userData.customSettings.disableApp || false,
+                    disableSideCart: tmpCartSettings.userData.customSettings.disableSideCart || false,
+                    refreshProductPageOnGiftWrap: tmpCartSettings.userData.customSettings.refreshProductPageOnGiftWrap || false,
+                    addToCartBtnSelectors: tmpCartSettings.userData.customSettings.addToCartBtnSelectors || DEFAULT_addToCartBtnSelectorsApp4Ext,
+                    checkoutBtnSelectors: tmpCartSettings.userData.customSettings.checkoutBtnSelectors || DEFAULT_checkoutBtnSelectorsApp4Ext,
+                    sideCartCheckoutBtnSelectors: tmpCartSettings.userData.customSettings.sideCartCheckoutBtnSelectors || DEFAULT_checkoutBtnSelectorsApp4Ext,
+                    overWriteCheckoutBtn: tmpCartSettings.userData.customSettings.overWriteCheckoutBtn || false,
+                    quantityBtnSelectors: tmpCartSettings.userData.customSettings.quantityBtnSelectors || DEFAULT_quantityBtnSelectorsApp4Ext,
+                    sideCartSelectors: tmpCartSettings.userData.customSettings.sideCartSelectors || DEFAULT_sideCartSelectorsApp4Ext,
+                    isCartIntegrationEnabled: tmpCartSettings.userData.customSettings.isCartIntegrationEnabled || false,
+                    cartItemSelectors: tmpCartSettings.userData.customSettings.cartItemSelectors || DEFAULT_cartItemSelectorAppExt,
+                    cartItemRemoveParentSelectors: tmpCartSettings.userData.customSettings.cartItemRemoveParentSelectors || DEFAULT_cartItemRemoveParentSelectorAppExt,
+                    cartItemRemoveSelectors: tmpCartSettings.userData.customSettings.cartItemRemoveSelectors || DEFAULT_cartItemRemoveSelectorAppExt,
+                    cartItemQuantityBtnSelectors: tmpCartSettings.userData.customSettings.cartItemQuantityBtnSelectors || DEFAULT_cartItemQuantityBtnSelectorsAppExt,
+                    customCartIntegrationScript: tmpCartSettings.userData.customSettings.customCartIntegrationScript || null,
+                    activeVariantCodes: tmpCartSettings.userData.customSettings.activeVariantCodes || "123456789",
+                    showBranding : tmpCartSettings.userData.customSettings.showBranding,
+                    buyNowBtn: tmpCartSettings.userData.customSettings.buyNowBtn || DEFAULT_buyNowBtnApp4Ext,
+                    customStyle: tmpCartSettings.userData.customSettings.customStyle || null,
+                    // customSettings.customThemeIntegrationScript
+                    customThemeIntegrationScript: tmpCartSettings.userData?.customSettings?.customThemeIntegrationScript || null,
+                    // customSettings.enableCustomThemeIntegrationScript
+                    enableCustomThemeIntegrationScript: tmpCartSettings?.userData?.customSettings?.enableCustomThemeIntegrationScript || false,
+                    useLinkProductAsDefaultProduct: tmpCartSettings?.userData?.customSettings?.useLinkProductAsDefaultProduct || false,
+                    checkIfShowBundleAsProductEnabled: tmpCartSettings?.userData?.customSettings?.checkIfShowBundleAsProductEnabled || false,
+                    selectorToRenderBundleProduct: tmpCartSettings?.userData?.customSettings?.selectorToRenderBundleProduct || '',
+                    selectorToRenderBundleProductOnSideCart: tmpCartSettings?.userData?.customSettings?.selectorToRenderBundleProductOnSideCart || '',
+                    selectorToRenderBundlePostionOnCart: tmpCartSettings?.userData?.customSettings?.selectorToRenderBundlePostionOnCart || 'Over',
+                    selectorToRenderBundlePostionOnSideCart: tmpCartSettings?.userData?.customSettings?.selectorToRenderBundlePostionOnSideCart || 'Over',
+                    listOfBundleIdsForDummyProductAsDefault: tmpCartSettings?.userData?.customSettings?.listOfBundleIdsForDummyProductAsDefault || [],
+                    customStyleForDummyProductPage: tmpCartSettings?.userData?.customSettings?.customStyleForDummyProductPage || null,
+                    overWriteDummyProductsLinkOnCollectionPages: tmpCartSettings?.userData?.customSettings?.overWriteDummyProductsLinkOnCollectionPages || false,
+                    selectorToRenderBundleUpsell :   tmpCartSettings?.userData?.customSettings?.selectorToRenderBundleUpsell || tmpCartSettings.userData.customSettings.addToCartBtnSelectors || DEFAULT_addToCartBtnSelectorsApp4Ext,
+                },
+                pageCustomizationData: {
+                    bundleUpSellButtonBg: tmpCartSettings?.pageCustomizationData?.generalSettings?.bundleUpSellButtonBg,
+                    bundleUpSellButtonBorderColor: tmpCartSettings?.pageCustomizationData?.generalSettings?.bundleUpSellButtonBorderColor,
+                    bundleUpsellTextColor: tmpCartSettings?.pageCustomizationData?.generalSettings?.bundleUpsellTextColor,
+                    createdAt: tmpCartSettings?.pageCustomizationData?.createdAt
+                },
+                merchantInfo: tmpCartSettings.userData,
+                languageData: tmpCartSettings.languageData,
+                // bundleUpsellSettings : tmpCa
+            }
+            let drivedSettings = gbbExt.f.drivedSettings(tmpCartSettings)
+            cart_settings.bundleLinkProductIdMap = drivedSettings.bundleLinkProductIdMap;
+            cart_settings.bundleLinkProductHandleMap = drivedSettings.bundleLinkProductHandleMap;
+            cart_settings.bundleLinkVariantIdMap = drivedSettings.bundleLinkVariantIdMap;
+            
+            cart_settings.bundleUpsellData = tmpCartSettings.bundleUpsellData;
+            cart_settings.bundleUpsellSettings = gbbExt.f.drivedSettingsForBundleUpsell(tmpCartSettings);
+            // bundleUpsellSettings.bundleLinkCollectionIdMap = drivedSettings.bundleLinkCollectionIdMap;
+            // cart_settings.bundleLinkCollectionHandleMap = drivedSettings.bundleLinkCollectionHandleMap;
+
+            cart_settings.bundleLinkData = tmpCartSettings.bundleLinkData;
+            cart_settings.bundleLinkDataByBundleId =  gbbExt.utility.convertArrayToObject(tmpCartSettings.bundleLinkData, "bundleId");
+            // cart_settings.bundleUpsellSettings = tmpCartSettings.bundleUpsellSettings;
+            gbbExt.settings = cart_settings;
+            gbbExt.utility.debugConsole("settings assigned")
+            
+        },
+
+        drivedSettings: function(tmpCartSettings) {
+            let bundleLinkProductIdMap = new Map();
+            let bundleLinkProductHandleMap = new Map();
+            let bundleLinkVariantIdMap = new Map();
+
+            let bundleLinkCollectionHandleMap = new Map();
+            let bundleLinkCollectionIdMap = new Map();
+
+            let bundleLinkData = tmpCartSettings.bundleLinkData;
+            
+            
+
+            for (let i = 0; i < bundleLinkData.length; i++) {
+                let bundleLink = bundleLinkData[i];
+                bundleLink["collectionsForBundleLink"] = [{
+                        "collectionId": "281627754703",
+                        "id": "281627754703",
+                        "handle": "gifting-bundles-3",
+                        "title": "Gifting bundles10",
+                        "gid": "gid://shopify/Collection/281627754703",
+                }]
+
+                if (bundleLink.productsForBundleLink && bundleLink.productsForBundleLink.length > 0) {
+                    for (let j = 0; j < bundleLink.productsForBundleLink.length; j++) {
+                        let productForBundleLink = bundleLink.productsForBundleLink[j];
+                        
+                        // Add Product to Maps
+                        bundleLinkProductIdMap.set(
+                            parseInt(productForBundleLink.productId),
+                            { productData: productForBundleLink, bundleId: bundleLink.bundleId }
+                        );
+                        
+                        bundleLinkProductHandleMap.set(
+                            productForBundleLink.handle,
+                            { productData: productForBundleLink, bundleId: bundleLink.bundleId }
+                        );
+                        
+                        // Loop through variants and add them to Maps
+                        if (productForBundleLink.variants && productForBundleLink.variants.length > 0) {
+                            for (let k = 0; k < productForBundleLink.variants.length; k++) {
+                                let variant = productForBundleLink.variants[k];
+            
+                                bundleLinkVariantIdMap.set(
+                                    parseInt(variant.variantId),
+                                    { variantData: variant, bundleId: bundleLink.bundleId, productData: productForBundleLink }
+                                );
+            
+                               
+                            }
+                        }
+                    }
+                }
+
+                
+                if (bundleLink.collectionsForBundleLink && bundleLink.collectionsForBundleLink.length > 0) {
+                    for (let j = 0; j < bundleLink.collectionsForBundleLink.length; j++) {
+                        let collectionForBundleLink = bundleLink.collectionsForBundleLink[j];
+                        
+                        // add collection to maps
+                        bundleLinkCollectionHandleMap.set(
+                            collectionForBundleLink.handle,
+                            { collectionData: collectionForBundleLink, bundleId: bundleLink.bundleId }
+                        );
+
+                        bundleLinkCollectionIdMap.set(
+                            parseInt(collectionForBundleLink.collectionId),
+                            { collectionData: collectionForBundleLink, bundleId: bundleLink.bundleId }
+                        );
+                    }
+                }
+            }
+            
+            return {
+                bundleLinkProductIdMap: bundleLinkProductIdMap,
+                bundleLinkProductHandleMap: bundleLinkProductHandleMap,
+                bundleLinkVariantIdMap: bundleLinkVariantIdMap,
+                bundleLinkCollectionHandleMap: bundleLinkCollectionHandleMap,
+                bundleLinkCollectionIdMap: bundleLinkCollectionIdMap
+            };
+            
+        },
+        drivedSettingsForBundleUpsell: function(tmpCartSettings) {
+            let bundleUpsellProductIdMap = new Map();
+            let bundleUpsellProductHandleMap = new Map();
+            let bundleUpsellVariantIdMap = new Map();
+
+            let bundleUpsellCollectionHandleMap = new Map();
+            let bundleUpsellCollectionIdMap = new Map();
+
+            let bundleUpsellData = tmpCartSettings.bundleUpsellData;
+            
+            bundleUpsellData = gbbExt.utility.convertObjectToArray(bundleUpsellData);
+
+            for (let i = 0; i < bundleUpsellData.length; i++) {
+                let bundleUpsell = bundleUpsellData[i]; 
+
+                //now we have showOnSpecificProductPages and showOnSpecificCollectionPages
+                //we need to create a map for them
+
+                let showOnSpecificProductPages = bundleUpsell.bundleUpsellConfig.showOnSpecificProductPages;
+                let showOnSpecificCollectionPages = bundleUpsell.bundleUpsellConfig.showOnSpecificCollectionPages;
+
+                if(showOnSpecificProductPages && showOnSpecificProductPages.length > 0){
+                    for(let j = 0; j < showOnSpecificProductPages.length; j++){
+                        let productPage = showOnSpecificProductPages[j];
+                        
+                        
+                        if (bundleUpsellProductIdMap.get(parseInt(productPage.productId))) {
+                          // push the value to the existing array
+                          let existingValue = bundleUpsellProductIdMap.get(parseInt(productPage.productId));
+                          existingValue.push({ productData: productPage, bundleId: bundleUpsell.bundleId });
+                          bundleUpsellProductIdMap.set(parseInt(productPage.productId), existingValue);
+                        } else {
+                          bundleUpsellProductIdMap.set(parseInt(productPage.productId), [{ productData: productPage, bundleId: bundleUpsell.bundleId }] );
+                        }
+
+                        if (bundleUpsellProductHandleMap.get(productPage.handle)) {
+                          // push the value to the existing array
+                          let existingValue = bundleUpsellProductHandleMap.get(productPage.handle);
+                          existingValue.push({ productData: productPage, bundleId: bundleUpsell.bundleId });
+                          bundleUpsellProductHandleMap.set(productPage.handle, existingValue);
+                        } else {
+                          bundleUpsellProductHandleMap.set(productPage.handle, [{ productData: productPage, bundleId: bundleUpsell.bundleId }]);
+                        }
+                    }
+                }
+
+                if(showOnSpecificCollectionPages && showOnSpecificCollectionPages.length > 0){
+                    for(let j = 0; j < showOnSpecificCollectionPages.length; j++){
+                        let collectionPage = showOnSpecificCollectionPages[j];
+
+
+                        if (bundleUpsellCollectionHandleMap.get(collectionPage.handle)) {
+                            // push the value to the existing array
+                            let existingValue = bundleUpsellCollectionHandleMap.get(collectionPage.handle);
+                            existingValue.push({ collectionData: collectionPage, bundleId: bundleUpsell.bundleId });
+                            bundleUpsellCollectionHandleMap.set(collectionPage.handle, existingValue);
+                        } else {
+
+
+                        bundleUpsellCollectionHandleMap.set(
+                            collectionPage.handle,
+                            [{ collectionData: collectionPage, bundleId: bundleUpsell.bundleId }]
+                        );
+
+                        }
+
+
+                        if (bundleUpsellCollectionIdMap.get(parseInt(collectionPage.collectionId))) {
+                            // push the value to the existing array
+                            let existingValue = bundleUpsellCollectionIdMap.get(parseInt(collectionPage.collectionId));
+                            existingValue.push({ collectionData: collectionPage, bundleId: bundleUpsell.bundleId });
+                            bundleUpsellCollectionIdMap.set(parseInt(collectionPage.collectionId), existingValue);
+                        }else {
+                            bundleUpsellCollectionIdMap.set(
+                                parseInt(collectionPage.collectionId),
+                                [{ collectionData: collectionPage, bundleId: bundleUpsell.bundleId }]
+                            );
+                        }
+                    }
+                }
+
+
+            }
+            
+            return {
+                bundleUpsellProductIdMap: bundleUpsellProductIdMap,
+                bundleUpsellProductHandleMap: bundleUpsellProductHandleMap,
+                bundleUpsellVariantIdMap: bundleUpsellVariantIdMap,
+                bundleUpsellCollectionHandleMap: bundleUpsellCollectionHandleMap,
+                bundleUpsellCollectionIdMap: bundleUpsellCollectionIdMap
+            };
+            
+        },
+        setSelectors:  function(){
+            let settings =  gbbExt.settings
+            gbbExt.selectors = {
+                addToCart: settings.app.addToCartBtnSelectors,
+                checkoutBtn : settings.app.checkoutBtnSelectors,
+                sideCartCheckoutBtn: settings.app.sideCartCheckoutBtnSelectors,
+                sideCartSelectors: settings.app.sideCartSelectors,
+                buyNowBtn: settings.app.buyNowBtn,
+                cartForm: settings.app.cartForm,
+                productPageWrapperV2: '.gbbExtProductPageWrapperV2',
+                cartPageWrapperV2: '.gbbExtCartPageWrapperV2',
+                gbbExtBundleUpsellWrapper: '.gbbExtBundleUpsellWrapper',
+                quantityBtnSelectors : settings.app.quantityBtnSelectors,
+                cartItemSelectors : settings.app.cartItemSelectors,
+                cartItemRemoveSelectors : settings.app.cartItemRemoveSelectors,
+                cartItemRemoveParentSelectors : settings.app.cartItemRemoveParentSelectors,
+                customCartIntegrationScript : settings.app.customCartIntegrationScript,
+                cartItemQuantityBtnSelectors : settings.app.cartItemQuantityBtnSelectors,
+            }
+        },
+        setCustomStyling: function (){
+            let customStyle =  gbbExt.settings.app.customStyle;
+            if(customStyle){
+                var styleSheet = document.createElement("style")
+                styleSheet.innerText = customStyle
+                document.body.appendChild(styleSheet)
+                // append customStyleForDummyProductPage to gbbExtLinkToBundlePage-HTML
+                // let parentToAppendCssTo = gbb
+                //append customStyleForDummyProductPage but with the parent as .gbbExtLinkToBundlePage-HTMl
+            }
+            
+        },
+        getPageType: function () {
+            var pageType = "";
+            if (window.location.pathname.includes("/cart") && !window.location.pathname.includes("/products")) {
+                pageType = "cart";
+            } else if (window.location.pathname.includes("/products")) {
+                pageType = "product";
+            } else if (window.location.pathname.includes("/collections")) {
+                pageType = "collection";
+            } else if (window.location.pathname.includes("/")) {
+                pageType = "HOME";
+            } else if ("undefined" != typeof Shopify && "undefined" != typeof Shopify.Checkout) {
+                pageType = "CHECKOUT";
+            } else {
+                pageType = "PAGE_NOT_FOUND";
+            }
+            return pageType;
+        },
+        getProductPageHandle: function () {
+            if ("product" === gbbExt.state.page_type && window.shopifyLiquidValuesApp4Ext &&  window.shopifyLiquidValuesApp4Ext.product.handle) {
+                // let pattern = /(?<=\\/products\\/)((?!\\?|\\$).)+/g
+                // if(window && window.location && window.location.href){
+                //     return window.location.href.match(pattern)[0]
+                // }
+                return window.shopifyLiquidValuesApp4Ext.product.handle
+            }
+            return "undefined"
+        },
+        getProductPageId: function () {
+            if (meta && meta.product && meta.product.id) {
+                return meta.product.id
+            }
+            return "undefined"
+        },
+        getThisProductsCollections: function () {
+            if ("product" === gbbExt.state.page_type && window.shopifyLiquidValuesApp4Ext &&  window.shopifyLiquidValuesApp4Ext.product.collections) {
+                return window.shopifyLiquidValuesApp4Ext.product.collections
+            }
+            return "undefined"
+        },
+
+        getSelectedVariant: function () {
+            if ("product" === gbbExt.state.page_type) {
+
+                let activeCodes = gbbExt.settings.app.activeVariantCodes;  
+                  
+                if(activeCodes.indexOf("1") >= 0){
+                    const params = Object.fromEntries(new URLSearchParams(location.search))
+                    if(params && params.variant){
+                        return params.variant
+                    }
+                }
+               
+                if(activeCodes.indexOf("2") >= 0){
+                        if (ShopifyAnalytics && ShopifyAnalytics.meta && ShopifyAnalytics.meta.selectedVariantId) {
+                        for(let i = 0; i < ShopifyAnalytics.meta.product.variants.length; i++){
+                            if(ShopifyAnalytics.meta.product.variants[i].id == ShopifyAnalytics.meta.selectedVariantId){
+                                return ShopifyAnalytics.meta.selectedVariantId
+                            }
+                        }
+                    }
+                }
+                if(activeCodes.indexOf("3") >= 0){
+                    if (document.querySelector('[name="id"]') && document.querySelector('[name="id"]').value) {
+                        return document.querySelector('[name="id"]').value
+                    }
+                }
+                
+                if(activeCodes.indexOf("4") >= 0){
+                    if (shopifyLiquidValuesApp4Ext.selected_or_first_available_variant) {
+                        return shopifyLiquidValuesApp4Ext.selected_or_first_available_variant.id
+                    }
+                }
+
+                return undefined
+            }
+        },
+
+        getProductQuantity: function () {
+            if (document.querySelector('[name="quantity"]') && document.querySelector('[name="quantity"]').value) {
+                if(Number(document.querySelector('[name="quantity"]').value)){
+                    return Number(document.querySelector('[name="quantity"]').value)
+                }else{
+                    return 1
+                }       
+            }else {
+                return 1
+            }
+        },
+
+        getElements: function (settings) {
+            return {
+                gwmGiftMsgAndWrapWrapperParent: gbbExt.$(gbbExt.$.parseHTML('<div class="gwmGiftMsgAndWrapHeader"><div class="gwmGiftMsgAndWrapHeaderItem"><label for="gwm-gift-wrapping" class="gwmGiftMsgAndWrapWrapperInnerEle"><input id="gwm-gift-wrapping" class="gwmGiftOptionsCheckbox" type="checkbox" name="addGiftOptions"><span class="gwmCustomWrapCheckboxCheckmark"></span><div class="gwmGiftMsgAndWrapWrapperInnerEleHeading"></div></label> </div></div>')),
+                gwmCartGiftMsgAndWrapWrapperParent: gbbExt.$(gbbExt.$.parseHTML('<div class="gwmCartGiftMsgAndWrapHeader"><div class="gwmCartGiftMsgAndWrapHeaderItem"><label for="gwm-gift-wrapping" class="gwmGiftMsgAndWrapWrapperInnerEle"><input id="gwm-gift-wrapping" class="gwmGiftOptionsCheckbox" type="checkbox" name="addGiftOptions"><span class="gwmCustomWrapCheckboxCheckmark"></span><div class="gwmGiftMsgAndWrapWrapperInnerEleHeading"></div></label></div></div>')),
+                gbbExtGiftMsgAndWrapWrapperParent: gbbExt.$(gbbExt.$.parseHTML('<div class="gbbExtLinkToBundlePageHeader"><div class="gbbExtLinkToBundlePageHeaderItem"><label for="gbbExt-modal" class="gbbExtLinkToBundlePageInnerEle"><input id="gbbExt-modal" class="gbbExtLinkToBundlePageCheckbox" type="checkbox" name="addGiftOptions"><span class="gbbExtLinkToBundlePageCheckboxCheckmark"></span><div class="gbbExtLinkToBundlePageInnerEleHeading"></div></label> </div></div>')),
+                gbbExtGiftMsgAndWrapWrapperParentV2: gbbExt.$(gbbExt.$.parseHTML('<div class="gbbExtLinkToBundlePageHeader"><div class="gbbExtLinkToBundlePageHeaderItem"><label for="gbbExt-gift-wrapping" class="gbbExtLinkToBundlePageInnerEle"><input id="gbbExt-gift-wrapping" class="gbbExtLinkToBundlePageCheckbox" type="checkbox" name="addGiftOptions"><span class="gbbExtLinkToBundlePageCheckboxCheckmark"></span><div class="gbbExtLinkToBundlePageInnerEleHeading"></div></label> </div></div>')),
+                gbbExtCartGiftMsgAndWrapWrapperParent: gbbExt.$(gbbExt.$.parseHTML('<div class="gbbExtCartGiftOptionsPageEleHeader"><div class="gbbExtCartGiftOptionsPageEleHeaderItem"><label for="gbbExt-gift-wrapping" class="gbbExtLinkToBundlePageInnerEle"><input id="gbbExt-gift-wrapping" class="gbbExtLinkToBundlePageCheckbox" type="checkbox" name="addGiftOptions"><span class="gbbExtLinkToBundlePageCheckboxCheckmark"></span><div class="gbbExtLinkToBundlePageInnerEleHeading"></div></label></div></div>')),
+                addToCartBtn: gbbExt.$(document).find(gbbExt.selectors.addToCart),
+                gbbExtBundleUpsellWrapper: gbbExt.$(gbbExt.$.parseHTML('<div class="gbbExtBundleUpsellWrapper"></div>')),
+                addToCartButtonCloned: undefined,
+                checkoutBtn: gbbExt.$(document).find(gbbExt.selectors.checkoutBtn),
+                cartForm: gbbExt.$(document).find(gbbExt.selectors.cartForm),
+                productPageWrapperV2: gbbExt.$(gbbExt.$.parseHTML('<div class="gbbExtPageWrapper gbbExtProductPageWrapperV2"> <div class="gbbExtLinkToBundlePageWrapper"></div>  <div class="gwmGiftMsgAndWrapWrapper"></div><div class="gwmGiftMessageWrapper"></div> </div>')),
+                cartPageWrapperV2: gbbExt.$(gbbExt.$.parseHTML('<div class="gbbExtPageWrapper gbbExtCartPageWrapperV2"> <div class="gbbExtCartGiftOptionsPageEleWrapper"></div><div class="gwmCartGiftMsgAndWrapWrapper"></div><div class="gwmCartGiftMessageWrapper"></div></div>')),
+                buyNowBtn: gbbExt.$(document).find(gbbExt.selectors.buyNowBtn)
+            }
+        },
+
+        initialize: async function (jQuery) {
+            //  gbbExt.$.ajaxSetup({global: true});
+            
+            let tmpCartSettings;
+            if(window && window?.easybundles_ext_data && window?.easybundles_ext_data?.userData) {
+                tmpCartSettings = window.easybundles_ext_data
+            } else {
+                tmpCartSettings =  await gbbExt.f.getSettings();
+            }
+
+            gbbExt.f.setSettings(tmpCartSettings)
+            gbbExt.f.setSelectors()
+            gbbExt.f.setCustomStyling()
+            gbbExt.state.page_type = gbbExt.f.getPageType();
+            gbbExt.elements = gbbExt.f.getElements(gbbExt.settings);
+            if ("" === gbbExt.state.page_type) return false;
+            gbbExt.utility.setLanguageLocale();
+            return gbbExt.f.bootstrap(gbbExt.settings);
+        },
+        globalListener: async function (settings) {
+            let isIntervalActive = false
+            //if app is disabled reurn
+            if (settings.app.disableApp) {
+                return
+            }else {
+                if ("product" === gbbExt.state.page_type) {
+                    gbbExt.productPage.init(settings)
+                }
+
+                if ("collection"=== gbbExt.state.page_type) {
+                    gbbExt.collectionPage.init(settings)
+                }
+
+                if(gbbExt.settings.app.checkIfShowBundleAsProductEnabled){
+                    gbbExt.gbbExtBundleProductInCart.init(settings)
+                }
+            }
+
+            
+            if(gbbExt.settings.app.enableCustomThemeIntegrationScript){
+                gbbExt.f.executeCustomThemeIntegrationScript()
+            }
+
+            setInterval(async () => {
+                if (!isIntervalActive) {
+                    // gbbExt.utility.debugConsole("gbbExt-globalListener-active")
+
+                    isIntervalActive = true
+
+
+                    // check if giftCard overwrite buyNowButton 
+                    if ("product" === gbbExt.state.page_type 
+                        && gbbExt.gbbExtLinkToBundlePage.state.isBundleProductPage 
+                        && !gbbExt.gbbExtLinkToBundlePage.state.addToCartClicked
+                        ) {
+                            
+                      
+                        gbbExt.gbbExtLinkToBundlePage.f.addToCartButtonOverwrite()
+                        gbbExt.gbbExtLinkToBundlePage.f.changeAddToCartButtonText(gbbExt.settings.languageData.general.selectBundleProductsText.value)
+                        gbbExt.gbbExtLinkToBundlePage.f.buyNowButtonOverwrite()
+                        
+                      
+                    }
+
+
+                    if ("product" === gbbExt.state.page_type){
+                        gbbExt.gbbExtBundleUpsell.f.insertWrapperOnPage();
+                    }
+                    // gbbExt.gbbCartPageExt.f.overWriteCheckoutBtn();
+
+                    if(gbbExt.settings.app.isCartIntegrationEnabled) {
+                        if (settings.app.disableSideCart) { //disableSideCart -> don't execute on product page
+                            if ("cart" === gbbExt.state.page_type) {
+                                await gbbExt.utility.checkAndReinitialzeCart();
+                            }
+                        } else {
+                            await gbbExt.utility.checkAndReinitialzeCart();
+                        }
+                    }
+
+
+                    if(gbbExt.settings.app.checkIfShowBundleAsProductEnabled){
+                        // check if sideCartSelectors is present
+                        // check if is in the dom. if not then fire it
+                        let isBundleAsOneProductInCart =  gbbExt.$(".gbbExtBundlesHTMLContainer").length > 0;
+                        if(!isBundleAsOneProductInCart){
+                            gbbExt.gbbExtBundleProductInCart.init(gbbExt.settings)
+                        }else{
+                            // do nothing
+                        }
+                        
+                    }
+
+
+                    if ("cart" === gbbExt.state.page_type || "product" === gbbExt.state.page_type) {
+                        // if (settings.app.disableSideCart) { //disableSideCart -> don't execute on product page
+                        //     if ("cart" === gbbExt.state.page_type) {
+                        //         await gbbExt.utility.checkAndReinitialzeCart();
+                        //     }
+                        // } else {
+                        //     await gbbExt.utility.checkAndReinitialzeCart();
+                        // }
+
+                        if(settings.app.overWriteCheckoutBtn){
+                            let mainCheckoutButton = gbbExt.selectors.checkoutBtn;
+                            let sidecartCheckoutButton = gbbExt.selectors.sideCartCheckoutBtn;
+                            
+                            if(mainCheckoutButton){
+                                gbbExt.gbbCartPageExt.f.overWriteCheckoutBtn(mainCheckoutButton);
+                            }
+
+                            if(sidecartCheckoutButton){
+                                gbbExt.gbbCartPageExt.f.overWriteCheckoutBtn(sidecartCheckoutButton);
+                            }
+
+                        }
+
+                    }
+
+
+                    if ("collection"=== gbbExt.state.page_type) {
+                        // gbbExt.collectionPage.init(settings)
+                        gbbExt.collectionPage.f.overWriteDummyProductLinksWithBundleLink();
+                    }
+
+                    gbbExt.gbbExtBundleProductInCart.f.registerEvents()
+                    isIntervalActive = false
+
+                }
+            }, 1000)
+        },
+        executeCustomThemeIntegrationScript: function(){
+            try {
+                let customThemeIntegrationScript = gbbExt.settings.app.customThemeIntegrationScript
+                if(customThemeIntegrationScript){
+                    eval(customThemeIntegrationScript)
+                }
+            } catch (error) {
+                gbbExt.utility.debugConsole("gbbExt.executeCustomThemeIntegrationScript", error)
+            }
+        },
+    },
+    
+
+    utility: {
+        getLocale: function () {
+            if (window.Shopify && window.Shopify.locale) {
+                return window.Shopify.locale
+            }else{
+                return "en"
+            } 
+        },
+        setLanguageLocale: function () {
+            let locale = gbbExt.utility.getLocale()
+            
+            if(gbbExt.settings.languageData && gbbExt.settings.languageData.languageMode == "SINGLE"){
+                locale = "en"
+            }
+
+            if(!gbbExt.settings.languageData[locale]){
+                locale = "en"
+            }
+
+            try{
+                let bundleLinkData = gbbExt.settings.bundleLinkData;
+                for (let i = 0; i < bundleLinkData.length; i++) {
+                    let bundleLink = bundleLinkData[i];
+                    let item = bundleLink.bundleUpsellConfig
+                    if (item && item.languageMode =="MULTIPLE"){
+                        item.bundleWidgetText = item.multiLangText[locale].bundleWidgetText || item.bundleWidgetText
+                        item.bundleWidgetRedirectText = item.multiLangText[locale].bundleWidgetRedirectText || item.bundleWidgetRedirectText
+                    }
+                }
+            }
+            
+
+            catch(e){
+                gbbExt.utility.debugConsole(e)
+            }
+
+            gbbExt.settings.languageData = gbbExt.settings.languageData[locale]
+        },
+        getDate: function (date) {
+            let d = new Date(date);
+            let month = "" + (d.getMonth() + 1);
+            let day = "" + d.getDate();
+            let year = d.getFullYear();
+
+            if (month.length < 2) month = "0" + month;
+            if (day.length < 2) day = "0" + day;
+
+            return [year, month, day].join("-");
+        },
+        addToCart: async function (data) {
+
+            try {
+                // if there is nothing to add in cart..just return true
+                if (!data.id) {
+                    return true
+                }
+                let result = await gbbExt.$.ajax({
+                    url: "/cart/add.js",
+                    data: data,
+                    type: "POST",
+                    dataType: "json",
+                })
+                return true
+            } catch (error) {
+                gbbExt.utility.debugError("gbbExt-utility-addToCart");
+                gbbExt.utility.debugError(error);
+                return false
+            }
+        },
+        updateCart: async function (data) {
+            try {
+                let result = await gbbExt.$.ajax({
+                    type: "POST",
+                    url: "/cart/update.js",
+                    data: data,
+                    dataType: "json",
+                });
+                return result
+            } catch (error) {
+                gbbExt.utility.debugError("gbbExt-utility-updateCart");
+                gbbExt.utility.debugError(error);
+                return false
+            }
+        },
+        changeCart: async function (data) {
+            try {
+                let result = await gbbExt.$.ajax({
+                    type: "POST",
+                    url: "/cart/change.js",
+                    data: data,
+                    dataType: "json",
+                });
+                return true
+            } catch (error) {
+                gbbExt.utility.debugError("gbbExt-utility-changeCart");
+                gbbExt.utility.debugError(error);
+                return false
+            }
+        },
+        getProductDataV2: function (productName) {
+            try {
+                let languageValue = window?.Shopify?.routes?.root ? window.Shopify.routes.root : "/"
+                return new Promise((res, rej) => {
+                    gbbExt.$.getJSON(languageValue +  "products/" + productName + ".js", function (product) {
+                        gbbExt.utility.debugConsole("success-productName: ", productName)
+                        res(product)
+                    }).fail(function () { gbbExt.utility.debugConsole("fail-productName: ", productName); res(false) })
+                })
+                return result;
+            } catch (error) {
+                gbbExt.utility.debugError("gbbExt-utility-getProductDataV2");
+                gbbExt.utility.debugError(error);
+                return false
+            }
+        },
+        addToCartV2: function (data) {
+            try {
+                return new Promise((res, rej) => {
+                    gbbExt.$.post('/cart/add.js', data)
+                        .done(function () { gbbExt.utility.debugConsole("success-/cart/add.js': "); res(true) })
+                        .fail(function () { gbbExt.utility.debugConsole("fail-/cart/add.js"); res(false) })
+                })
+                return result;
+            } catch (error) {
+                gbbExt.utility.debugError("gbbExt-utility-addToCartV2");
+                gbbExt.utility.debugError(error);
+                return false
+            }
+        },
+        clearCart: function (data) {
+            try {
+                return new Promise((res, rej) => {
+                    gbbExt.$.post('/cart/clear.js', data)
+                        .done(function () { gbbExt.utility.debugConsole("success-/cart/clear.js': "); res(true) })
+                        .fail(function () { gbbExt.utility.debugConsole("fail-/cart/clear.js"); res(false) })
+                })
+                return result;
+            } catch (error) {
+                gbbExt.utility.debugError("gbbExt-utility-clearCart");
+                gbbExt.utility.debugError(error);
+                return false
+            }
+        },
+        getCart: async function (data) {
+            try {
+                let result = await gbbExt.$.ajax({
+                    type: "GET",
+                    url: "/cart.js",
+                    dataType: "json",
+                });
+                return result
+            } catch (error) {
+                gbbExt.utility.debugError("gbbExt-utility-getCart");
+                gbbExt.utility.debugError(error);
+                return false
+            }
+        },
+        
+        isCartEmpty: function () {
+            if (gbbExt.state.cartData && gbbExt.state.cartData.items.length <= 0) {
+                return true;
+                
+            } else {
+                return false
+            }
+        },
+
+        cloneAddToCartBtn: function () {
+        },
+        renderLanguageValue: function (parent) {
+            if (parent){
+                return parent.value;
+            }
+         return;
+        },  
+        slider: {
+            state: {
+                slideIndex: 0,
+            },
+            plusSlides: function (selector, n) {
+                this.showSlides(selector, this.state.slideIndex += n);
+            },
+            //minusSlides
+            minusSlides: function (selector, n) {
+                this.showSlides(selector, this.state.slideIndex -= n);
+            },
+            showSlides: function (selector, n) {
+                var i;
+                var slides = selector.find(".gbbExtComboItemContainerItem1Img");
+                if (slides && slides.length) {
+                    //     slides = JSON.parse(slides);
+                    // }
+
+
+                    if (n > slides.length) { this.state.slideIndex = 1 }
+                    if (n < 1) { this.state.slideIndex = slides.length }
+                    for (i = 0; i < slides.length; i++) {
+                        slides[i].style.display = "none";
+                    }
+                    slides[this.state.slideIndex - 1].style.display = "block";
+                    //   plusSlides(1)
+                }
+                // setTimeout(function () { plusSlides(n + 1) }, 2000);
+            },
+        },
+        isMobileView: function () {
+            if (window.innerWidth < 768) {
+                return true;
+            } else {
+                return false;
+            }
+        },
+        updateCart: async function (cartData) {
+            try {
+                let result = await gbbExt.$.ajax({
+                    url: "/cart/update.js",
+                    data: cartData,
+                    type: "POST",
+                    dataType: "json",
+                })
+                return result;
+            } catch (error) {
+                gbbExt.utility.debugConsole("error in shopifyUtility.updateCart", error)
+                // throw error
+                return false
+            }
+        },
+        getRelevantBoxProducts: function(boxId) {
+            try {
+                let cartData = gbbExt.state.cartData;
+                let cartItems = cartData.items || [];
+                let result = [];
+                for(let i=0; i<cartItems.length; i++) {
+                    let cartItem = cartItems[i];
+                    if(cartItem && cartItem.properties) {
+                        let properties = Object.keys(cartItem?.properties) || [];
+                        if(properties.includes("Box ID") && parseInt(cartItem["properties"]["Box ID"]) == parseInt(boxId)) {
+                            result.push(cartItem);
+                        }
+                    }
+                }
+                return result;
+            } catch(err) {
+                gbbExt.utility.debugConsole(err)
+            }
+        },
+        removeAllProductsFromRelevantBox: async function(boxId) {
+            try {
+              let qty = 0;
+              let data = { updates: {} };
+              let result = true;
+                let shopifyCartItems = gbbExt.utility.getRelevantBoxProducts(boxId);
+                // shopifyCartItems = shopifyCartItems.items;
+                if (shopifyCartItems.length > 0) {
+                  for (let i = 0; i < shopifyCartItems.length; i++) {
+                    let item = shopifyCartItems[i];
+                    let itemBoxId = parseInt(item.properties["Box ID"]);
+                    if (itemBoxId == boxId) {
+                      //tbd more conditions?
+                      data.updates[shopifyCartItems[i]["key"]] = qty;
+                    }
+                  }
+                  if (Object.keys(data?.updates)?.length > 0) {
+                    result = await gbbExt.utility.updateCart(data);
+                  }
+                }
+              return result;
+            } catch (err) {
+              gbbExt.utility.debugConsole(err);
+              return false;
+            }
+        },
+        checkAndReinitialzeCart: async function() {
+            try {
+                let allCartItems = gbbExt.$(document).find(gbbExt.selectors.cartItemSelectors); //all cart item html elements
+                let isModified = true;
+                if(!gbbExt.settings.app.isCartIntegrationEnabled) {
+                    return;
+                }
+                if(allCartItems && allCartItems.length > 0) {
+                    for(let i=0; i < allCartItems.length; i++) {
+                        let cartItem = allCartItems[i];
+                        let cartItemElement = gbbExt.$(document).find(cartItem);
+                        let cartItemModified = cartItemElement.attr("gbbModified");
+                        if(!cartItemModified) {
+                            isModified = false;
+                        }
+                        if(!isModified) {
+                            let cartData  = await gbbExt.utility.getCart();
+                            gbbExt.state.cartData = cartData;
+                            if(gbbExt.selectors.customCartIntegrationScript && gbbExt.selectors.customCartIntegrationScript.length !=0) {
+                                let userCartPageExt = gbbExt.selectors.customCartIntegrationScript;
+                                // gbbExt.utility.debugConsole(userCartPageExt);
+                                // gbbExt.cartPageExt = JSON.parse(userCartPageExt)
+                                // Object.setPrototypeOf(gbbExt.cartPageExt, JSON.parse(userCartPageExt));
+                                // gbbExt.cartPageExt = Object.assign({}, JSON.parse(userCartPageExt));
+                                const MyClass = new Function(`return ${userCartPageExt}`)();
+                                const myObject = new MyClass();
+                                myObject.init();
+                                // gbbExt.cartPageExt = eval(userCartPageExt);
+                                // gbbExt.utility.debugConsole(userCartPageExt);
+                                // gbbExt.cartPageExt = Object.assign({}, userCartPageExt);
+                                // eval(userCartPageExt);
+                                // let userCartPageExt = eval(gbbExt.selectors.customCartIntegrationScript)
+                                // gbbExt.cartPageExt.f = userCartPageExt;
+                                // userCartPageExt.init();
+                                // gbbExt.cartPageExt = eval(gbbExt.selectors.customCartIntegrationScript);
+                            } 
+                            // else {
+                                // gbbExt.cartPageExt.init();
+                            // }
+                            break;
+                        }
+                    }
+                }
+            } catch(err) {
+                gbbExt.utility.debugConsole(err);
+            }
+        },
+        getCurrencySymbol: function () {
+            if (window && window.Shopify && window.Shopify.currency && window.Shopify.currency.active) {
+                let symbol = gbbExt.settings.merchantInfo.multipleCurrenciesInfo[window.Shopify.currency.active]?.symbol || Shopify.currency.active;
+                return symbol;
+            }
+        },
+        formatPrice: function (price) {
+            try {
+                if (window && window.Shopify && window.Shopify.currency && window.Shopify.currency.active) {
+                    //find the currency symbol from  gbb.settings.merchantInfo.multipleCurrencies[window.Shopify.currency.active] get the symbol
+                    let currencySymbol = gbbExt.utility.getCurrencySymbol();
+                    return currencySymbol + "" + parseFloat(price / 100).toFixed(2)
+                }
+            } catch(err) {
+                gbbExt.utility.debugConsole(err);
+            }
+        },
+        removeEventListenersFromSelectors: function(item, selectors) {
+            try {
+                let allSelectors = selectors.split(",");
+                for(let i=0; i<allSelectors.length; i++) {
+                    let currentDiv = gbbExt.$(item).find(allSelectors[i]);
+
+                    gbbExt.utility.removeOnClickFromElement(currentDiv);
+                }
+            } catch(err) {
+                gbbExt.utility.debugConsole("error inside removeEventListenersFromParent", err);
+            }
+        },
+        modifySelectors: function(item, parentSelectors, childAttributes) {
+            try {
+                let allSelectors = parentSelectors.split(",");
+                for(let i=0; i<allSelectors.length; i++) {
+                    let currentDiv = gbbExt.$(item).find(allSelectors[i]);
+                    childAttributes = childAttributes.split(",")
+                    for(let j=0; j<childAttributes.length; j++) {
+                        let currentAttributeValue = currentDiv.attr(childAttributes[j]);
+                        currentDiv.removeAttr(childAttributes[j]);
+                        currentDiv.attr(`gbbExt-${childAttributes[j]}`, currentAttributeValue);
+                    }
+                }
+            } catch(err) {
+                gbbExt.utility.debugConsole(err);
+            }
+        },
+        removeOnClickFromElement: function(element) {
+            try {
+               let ele = gbbExt.$(document).find(element);
+            //    let newEle = ele.clone(false) //.addClass("newButton")
+            //    ele.replaceWith(newEle)
+               ele.off().off("click").unbind();
+               return true;
+            } catch(err) {
+                gbbExt.utility.debugConsole(err);
+            }
+        },
+        prepareDiscountStringFromCart: function() {
+            let cartData = gbbExt.state.cartData;
+            let boxIdOffset = 0;
+            let listOfBundleNamesPresentInCart = [];
+            cartData.items.forEach(item => {
+                if(item.properties["Box ID"]) {
+                    boxIdOffset = parseInt(item.properties["Box ID"]);
+                   // this will append duplicate box names, but its not gonna harm or cause a problem, so its fine
+                   listOfBundleNamesPresentInCart.push(item.properties["Bundle"]);
+                }
+            });
+
+            listOfBundleNamesPresentInCart = [...new Set(listOfBundleNamesPresentInCart)];
+            let getAllDiscountsToApply = {};
+            let gbbDiscountsAlreadyPresentInCart = Object.keys(cartData.attributes).filter(key => key.includes("gbbDiscountCode-"));
+
+            if(gbbDiscountsAlreadyPresentInCart.length > 0) {
+                gbbDiscountsAlreadyPresentInCart.forEach(discountCodeKey => {
+                    let discountCode = cartData.attributes[discountCodeKey];
+                    // check if this discountCodeKey is present in listOfBundleNamesPresentInCart
+                    let discountCodeKeyBoxName = discountCodeKey.split("-")[1];
+
+                    //is discountCodeKeyBoxName present in listOfBundleNamesPresentInCart
+                    if(discountCodeKeyBoxName && listOfBundleNamesPresentInCart.includes(discountCodeKeyBoxName)) {
+                        // if yes, then add this discountCode to gbb.gbbBrowser.state.gbbDiscountsAlreadyPresentInCart
+                        getAllDiscountsToApply[discountCodeKey] = discountCode;
+                    }
+                })
+            }
+
+            if (Object.keys(getAllDiscountsToApply).length > 0) {
+                //convert them to teeboxblandselv-42609929,teeboxblandselv-42609929
+                discountCodeString = Object.values(getAllDiscountsToApply).join(",");
+              }
+
+            return discountCodeString;
+        },
+    
+        debugConsole: function(...messages) {
+            try {
+                let flag = gbbExt.state.CONSTANT_DEBUG_FLAG;
+                if (flag == false) {
+                    return;
+                }
+                if (flag == true) {
+                    for (let message of messages) {
+                       console.log(message);
+                    }
+                    return;
+                }
+                let isDebug = localStorage.getItem("debug");
+                if (isDebug) {
+                    for (let message of messages) {
+                        console.log(message);
+                    }
+                    gbbExt.state.CONSTANT_DEBUG_FLAG = true
+                } else {
+                    gbbExt.state.CONSTANT_DEBUG_FLAG = false
+                }
+            } catch (err) {
+                console.error('error inside debugConsole ->', err)
+            }
+        },
+        debugError: function(...messages) {
+            try {
+                let flag = gbbExt.state.CONSTANT_DEBUG_FLAG;
+                if (flag == false) {
+                    return;
+                }
+                if (flag == true) {
+                    for (let message of messages) {
+                        console.error(message);
+                    }
+                    return;
+                }
+                let isDebug = localStorage.getItem("debug");
+                if (isDebug) {
+                    gbbExt.state.CONSTANT_DEBUG_FLAG = true;
+                    for (let message of messages) {
+                        console.error(message);
+                    }
+                } else {
+                    gbbExt.state.CONSTANT_DEBUG_FLAG = false
+                }
+            } catch (err) {
+                console.error('error inside the debugError function ->', err)
+            }
+        },
+        convertObjectToArray: function (obj) {
+            let arr = []
+            for (let key in obj) {
+                arr.push(obj[key])
+            }
+            return arr
+        },
+        convertArrayToObject: function (array, key) {
+            try {
+              let obj = {};
+              for (let i = 0; i < array.length; i++) {
+                obj[array[i][key]] = array[i];
+              }
+              return obj;
+            } catch (err) {
+              gbbExt.utility.debugConsole(err);
+            }
+          },
+    },
+    productPage: {
+        init: async function (settings) {
+            gbbExt.utility.debugConsole("productPage-init")
+            // gbbExt.utility.cloneAddToCartBtn()
+            gbbExt.gbbExtLinkToBundlePage.init(settings, "PRODUCT_PAGE")
+            // gbbExt.gbbExtGiftWrap.init(settings, "PRODUCT_PAGE")
+            gbbExt.gbbExtBundleUpsell.init(settings, "PRODUCT_PAGE")
+        },
+        f: {
+            
+        },
+         
+        actions: {
+        },
+    },
+    collectionPage:{
+        init: async function (settings) {
+            gbbExt.utility.debugConsole("collectionPage-init")
+            gbbExt.collectionPage.initialize();
+            // gbbExt.gbbExtLinkToBundlePage.init(settings, "COLLECTION_PAGE")
+            // gbbExt.gbbExtBundleUpsell.init(settings, "COLLECTION_PAGE")
+        },
+        initialize: function () {
+            // get all the bundle links re
+
+            gbbExt.collectionPage.f.overWriteDummyProductLinksWithBundleLink()
+                
+            
+
+        },
+        f:{
+            overWriteDummyProductLinksWithBundleLink: function(){
+                try{
+                    // Check if the function has already been called
+                    if (!gbbExt.settings.app.overWriteDummyProductsLinkOnCollectionPages){
+                        return;
+                    }
+
+                    let bundleLinkProductHandleMap = gbbExt.settings.bundleLinkProductHandleMap;
+                    let allBundleHandles = [];
+
+                    bundleLinkProductHandleMap.forEach(function(value, key) {
+                        allBundleHandles.push(key);
+                    });
+
+                    // gbbExt.utility.debugConsole(allBundleHandles);
+
+                    for (let i = 0; i < allBundleHandles.length; i++) {
+                        let handle = allBundleHandles[i];
+                        let domelements = gbbExt.$("a").filter(function() {
+                            let href = gbbExt.$(this).attr("href");
+                            return href && href.includes(handle);
+                        });
+
+                        domelements.each(function(index, element) {
+                            let href = gbbExt.$(element).attr("href");
+                            if (href && href.includes("/apps/")) {
+                                // Skip elements with href containing /apps/
+                                return;
+                            }
+
+                            gbbExt.utility.debugConsole("overwriting now for handle: " + handle);
+
+                            let productHandle = handle;
+                            let bundleId = bundleLinkProductHandleMap.get(productHandle).bundleId;
+
+                            // Get BundleUrl
+                            let bundleUrl = gbbExt.gbbExtLinkToBundlePage.f.getBundleUrl(bundleId);
+
+                            // Replace all the href attributes of the elements with the bundleUrl
+                            gbbExt.$(element).attr("href", bundleUrl);
+
+                            // Also replace any elements that have buttons
+                            let button = gbbExt.$(element).find("button");
+                            if (button.length > 0) {
+                                // Prevent default on onclicks
+                                gbbExt.$(button).on('click', function(event) {
+                                    event.preventDefault();
+                                    event.stopPropagation();
+                                    window.location.href = bundleUrl;
+                                });
+                            }
+
+                            // Also replace any buttons in the parent
+                            let parentButton = gbbExt.$(element).parent().find("button");
+                            if (parentButton.length > 0) {
+                                // Prevent default on onclicks
+                                gbbExt.$(parentButton).on('click', function(event) {
+                                    event.preventDefault();
+                                    event.stopPropagation();
+                                    window.location.href = bundleUrl;
+                                });
+                            }
+                        });
+                    }
+
+                        
+                }catch(err){
+                    // debugConsole.
+                    gbbExt.utility.debugConsole("err in overWriteDummyProductLinksWithBundleLink",err)  
+                }
+            },
+            
+        }
+
+    },
+    cartPageExtModal: {
+        init: function(boxId){
+            gbbExt.cartPageExtModal.initialize.renderRemoveCartItemConformationModal(boxId);
+        },
+        initialize:{
+            renderRemoveCartItemConformationModal: function(boxId) {
+                try {
+                    const gbbRemoveCartItemConfirmationMainContainer = gbbExt.$("<div>").addClass("gbbRemoveCartItemConfirmationMainContainer");
+                    const gbbRemoveCartItemConfirmationContainerModal = gbbExt.$("<div>").addClass("gbbRemoveCartItemConfirmationContainerModal");
+            
+                    const gbbCartPageCartProductsContainerHeader = gbbExt.$("<div>").addClass("gbbCartPageCartProductsContainerHeader");
+                    const gbbCartPageCartProductsContainerHeaderLabel = gbbExt.$("<div>").addClass("gbbCartPageCartProductsContainerHeaderLabel")
+                    .text(gbbExt?.settings?.languageData?.general?.removeAllBoxProducts?.value || "This is a Box Product. Removing this will remove all the products from box")
+                    .append(" ").append(boxId).append(".")
+                    const gbbCartPageCartProductsContainerBody = gbbExt.$("<div>").addClass("gbbCartPageCartProductsContainerBody");
+                
+                    const gbbCartPageCartModalProductsContainer = gbbExt.$("<div>").addClass("gbbCartPageCartModalProductsContainer");
+
+                    const gbbCartPageProductsModalFooter = gbbExt.$("<div>").addClass("gbbCartPageProductsModalFooter");
+                    
+                    const gbbCartPageProductsModalFooterBackBtn = gbbExt.$("<div>").addClass("gbbCartPageProductsModalFooterBackBtn");
+                    gbbCartPageProductsModalFooterBackBtn.text(gbbExt?.settings?.languageData?.general?.backButtonText?.value||"Back");
+                    gbbCartPageProductsModalFooterBackBtn.css("background", gbbExt?.settings?.pageCustomizationData?.cartFooter?.cartFooterBackButtonColor || "#6d7175");
+                    gbbCartPageProductsModalFooterBackBtn.css("color", gbbExt?.settings?.pageCustomizationData?.cartFooter?.cartFooterBackButtonTextColor || "#ffffff");
+                    gbbCartPageProductsModalFooterBackBtn.on("click", async ()=>{
+                        gbbCartPageProductsModalFooterBackBtn.addClass("gbbDisabled")
+                        gbbCartPageProductsModalFooterRemoveBtn.addClass("gbbDisabled")
+                        gbbCartPageProductsModalFooterBackBtn.removeClass("gbbDisabled")
+                        gbbCartPageProductsModalFooterRemoveBtn.removeClass("gbbDisabled")
+                        gbbExt.$("body").find(".gbbRemoveCartItemConfirmationMainContainer").remove()
+                    })
+
+                    const gbbCartPageProductsModalFooterRemoveBtn = gbbExt.$("<div>").addClass("gbbCartPageProductsModalFooterRemoveBtn");
+                    gbbCartPageProductsModalFooterRemoveBtn.text(gbbExt.settings?.languageData?.general?.removeButtonText?.value ||"Remove")
+                    gbbCartPageProductsModalFooterRemoveBtn.css("background", gbbExt?.settings?.pageCustomizationData?.summaryBlock?.summaryBlockAddToCartButtonColor || "#000000")
+                    gbbCartPageProductsModalFooterRemoveBtn.css("color", gbbExt?.settings?.pageCustomizationData?.summaryBlock?.summaryBlockAddToCartButtonTextColor || "#ffffff")
+                    gbbCartPageProductsModalFooterRemoveBtn.on("click", async (event)=>{
+                        event.preventDefault();
+                        event.stopPropagation();
+                        gbbCartPageProductsModalFooterBackBtn.addClass("gbbDisabled")
+                        gbbCartPageProductsModalFooterRemoveBtn.addClass("gbbDisabled")
+                        let removeProducts = await gbbExt.utility.removeAllProductsFromRelevantBox(boxId);
+                        if(removeProducts) {
+                            // setTimeout(()=>{
+                                gbbExt.$("body").find(".gbbRemoveCartItemConfirmationMainContainer").remove()
+                                window.location.reload(true);
+                            // },5000)
+                        }
+                        // gbbCartPageProductsModalFooterRemoveBtn.text(gbbExt.settings.languageData.general?.loadingCheckoutButtonText?.value || "Loading ...1")
+                        // await gbb.utility.applyDiscountOnCheckout();
+                        // gbb.gbbBrowser.clearCartDataFromSessionStorage();
+
+                        // await gbb.utility.loadCheckoutPage();
+                    })
+
+                    gbbCartPageProductsModalFooter.append(gbbCartPageProductsModalFooterBackBtn);
+                    gbbCartPageProductsModalFooter.append(gbbCartPageProductsModalFooterRemoveBtn);
+
+
+
+                    let products = gbbExt.utility.getRelevantBoxProducts(boxId);
+                    products.forEach((product) => {
+                        const gbbCartPageCartModalProductContainer = gbbExt.$("<div>").addClass("gbbCartPageCartModalProductContainer");
+                        //attach a data attriute to the product container
+                        gbbCartPageCartModalProductContainer.attr("productId", product?.product_id);
+                        gbbCartPageCartModalProductContainer.attr("variantId", product?.variant_id)
+                
+                        const gbbCartPageCartProductImageContainer = gbbExt.$("<div>").addClass("gbbCartPageCartProductImageContainer");
+                        const gbbCartPageCartModalProductImage = gbbExt.$("<img>").addClass("gbbCartPageCartModalProductImage");
+                        gbbCartPageCartModalProductImage.attr("src", product.image);
+                        const gbbCartPageCartModalProductTextContainer = gbbExt.$("<div>").addClass("gbbCartPageCartModalProductTextContainer");
+                        
+                        const gbbCartPageCartModalProductTitleContainer = gbbExt.$("<div>").addClass("gbbCartPageCartModalProductTitleContainer");
+                        const gbbCartPageCartModalProductTitle = gbbExt.$("<div>").addClass("gbbCartPageCartModalProductTitle");
+                        const gbbCartPageCartModalProductQuantity = gbbExt.$("<div>").addClass("gbbCartPageCartModalProductQuantity");
+                        
+                        const gbbCartPageCartModalProductPriceQtyContainer = gbbExt.$("<div>").addClass("gbbCartPageCartModalProductPriceQtyContainer");
+                        const gbbCartPageCartModalProductPrice = gbbExt.$("<div>").addClass("gbbCartPageCartModalProductPrice");
+                        //a button to remove the product from the cart
+                
+                        gbbCartPageCartModalProductTitle.text(product.title);
+                        gbbCartPageCartModalProductPrice.text(gbbExt.utility.formatPrice(product.price));
+                        gbbCartPageCartModalProductQuantity.text("x" + product.quantity);
+                        gbbCartPageCartProductImageContainer.append(gbbCartPageCartModalProductImage);
+                
+                        gbbCartPageCartModalProductTitleContainer.append(gbbCartPageCartModalProductTitle);
+                        //gbbCartPageCartModalProductTitleContainer.append(gbbCartPageCartModalProductQuantity);
+                
+                        gbbCartPageCartModalProductTextContainer.append(gbbCartPageCartModalProductTitleContainer);
+                        gbbCartPageCartModalProductPriceQtyContainer.append(gbbCartPageCartModalProductQuantity);
+                        gbbCartPageCartModalProductPriceQtyContainer.append(gbbCartPageCartModalProductPrice);
+                        gbbCartPageCartModalProductTextContainer.append(gbbCartPageCartModalProductPriceQtyContainer);
+                
+                        gbbCartPageCartModalProductContainer.append(gbbCartPageCartProductImageContainer);
+                        gbbCartPageCartModalProductContainer.append(gbbCartPageCartModalProductTextContainer);
+                        gbbCartPageCartModalProductsContainer.append(gbbCartPageCartModalProductContainer);
+                    })
+            
+                    gbbCartPageCartProductsContainerHeader.append(gbbCartPageCartProductsContainerHeaderLabel);
+            
+                    gbbCartPageCartProductsContainerBody.append(gbbCartPageCartModalProductsContainer);
+            
+                    gbbRemoveCartItemConfirmationContainerModal.append(gbbCartPageCartProductsContainerHeader);
+                    gbbRemoveCartItemConfirmationContainerModal.append(gbbCartPageCartProductsContainerBody);
+                    gbbRemoveCartItemConfirmationContainerModal.append(gbbCartPageProductsModalFooter);
+            
+                    gbbRemoveCartItemConfirmationMainContainer.append(gbbRemoveCartItemConfirmationContainerModal);
+                    gbbExt.$("body").append(gbbRemoveCartItemConfirmationMainContainer);
+            
+                } catch(err) {
+                    gbbExt.utility.debugConsole(err);
+                }
+            }
+        },
+        f:{
+            findInCartProductsByLineValue : function(cartData, line) {
+                try {
+                    // let allCartItems = await gbbExt.utility.getCart();
+                    let allCartItems = cartData.items || [];
+                    let item = allCartItems[parseInt(line)-1]
+                    if(item && item?.properties) {
+                        let properties = Object.keys(item.properties) || [];
+                        if (properties.includes("Box ID")) {
+                            return item;
+                        }
+                    }
+                    return false;
+                } catch(err) {
+                    gbbExt.utility.debugConsole(err)
+                }
+            },
+            findInCartProductsByKeyValue : function(cartData, key) {
+                try {
+                    // let allCartItems = await gbbExt.utility.getCart();
+                    let allCartItems = cartData.items || [];
+                    for(let i=0; i<allCartItems.length; i++) {
+                        let item = allCartItems[i];
+                        if(item && item?.properties){
+                            let properties = Object.keys(item.properties) || [];
+                            if(item.key == key && (properties.includes("Box ID"))) {
+                                return item;
+                            }
+                        }
+                    }
+                    return false;
+                } catch(err) {
+                    gbbExt.utility.debugConsole(err)
+                }
+            },
+            findInCartProductsByIndex : function (cartData,index) {
+                try {
+                    let allCartItems = cartData.items || [];
+                                        let item = allCartItems[parseInt(index)]
+                                        if(item && item?.properties) {
+                                            let properties = Object.keys(item.properties) || [];
+                                            if (properties.includes("Box ID")) {
+                                                return item;
+                                            }
+                                        }
+                    return false;
+                } catch(err) {
+                    gbbExt.utility.debugConsole("error inside findInCartProductsByIndex", err);
+                }
+            }
+        }
+    },
+    gbbCartPageExt:{
+        f:{
+            overWriteCheckoutBtn: async function (elementSelector) {
+              try {
+                  let checkoutBtnEle = gbbExt.$(document).find(elementSelector)
+                  let checkoutBtnParent =  checkoutBtnEle.parent();
+                  if (checkoutBtnEle && checkoutBtnEle.length > 0 && gbbExt.$(checkoutBtnParent).find(".gbbExt-overwrite-checkout-btn").length == 0) {
+                      checkoutBtnEle.show()
+                      checkoutBtnEle.unbind().unbind("click").off().off("click");
+                      let newcheckoutBtnEle = checkoutBtnEle.clone()
+                    //   gbbExt.utility.debugConsole("newcheckoutBtnEle", newcheckoutBtnEle)
+                      checkoutBtnEle.after(newcheckoutBtnEle)
+                      checkoutBtnEle.hide()
+                      newcheckoutBtnEle.addClass("gbbExt-overwrite-checkout-btn")
+      
+                      gbbExt.state.cartData = await gbbExt.utility.getCart();
+
+                      newcheckoutBtnEle.on("click", function (event) {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          gbbExt.$(this).attr("disabled", true);
+                          let loadingCheckoutText = gbbExt.utility.renderLanguageValue(gbbExt.settings.languageData.general.cartPageCheckoutButtonLoadingText);
+                          newcheckoutBtnEle.text(loadingCheckoutText || "loading checkout...");
+                          setTimeout(() => { gbbExt.$(this).attr("disabled", false) }, 3000)
+                          addToCartBtnEle = gbbExt.$(document).find(gbbExt.selectors.addToCart)
+                          sideCartEle = gbbExt.$(document).find(gbbExt.selectors.sideCartSelectors)
+      
+                          // gbbExt.$(document).find("body").addClass("loadingCheckoutPage")
+                          // gbbExt.$(document).find("body").text("loading checkout...")
+      
+                          if (sideCartEle && sideCartEle.length > 0) {
+                              sideCartEle.css("display", "none")
+                          }
+      
+                          if (addToCartBtnEle && addToCartBtnEle.length > 0) {
+                              addToCartBtnEle.trigger("click")
+                          }
+                          setTimeout(() => {
+                              // let properties =  gbbExt.state.cartData.properties;
+                              let discountString = gbbExt.utility.prepareDiscountStringFromCart();
+                              if(discountString) {
+                                  window.location.href = window.location.origin + "/cart/checkout?discount=" + discountString
+                              }else{
+                                  window.location.href = window.location.origin + "/cart/checkout"
+                              }
+                          }, 1000)
+      
+                      })
+      
+                  }else if(checkoutBtnEle.length < 1){
+                    // gbbExt.utility.debugConsole("checkout-button not found")
+                  }else{
+                    // gbbExt.utility.debugConsole("checkout-button already overwritten")
+                  }
+              } catch (error) {
+                gbbExt.utility.debugConsole("error inside overWriteCheckoutBtn", error);
+                return false;
+              }
+            },
+        }
+    },
+    // cartPageExt:{
+    //     init: function (settings) {
+    //         gbbExt.cartPageExt.f.initializeCartItems();
+    //     },
+    //     f: {
+    //             //accepts an array of selectors separated by a comma
+    //             initializeCartItems: function(){
+    //                 try {
+    //                     gbbExt.utility.debugConsole("inside new cart page code")
+    //                     let cartData  = gbbExt.state.cartData;
+    //                     let allCartItems = gbbExt.$(document).find(gbbExt.selectors.cartItemSelectors); //all cart item html elements
+    //                     if(allCartItems && allCartItems.length > 0) {
+    //                         for(let i=0; i < allCartItems.length; i++) {
+    //                             let cartItem = allCartItems[i];
+    //                             let cartItemElement = gbbExt.$(document).find(cartItem);
+    //                             let removeCartItemDiv = gbbExt.$(cartItem).find(gbbExt.selectors.cartItemRemoveSelectors)  //".parent1 , .parent2"
+    //                             let isGBBProduct = gbbExt.cartPageExt.f.determineIfBoxProduct(cartData, removeCartItemDiv); //if its a gbb product a new attribute called gbbBoxID will be added to the html element
+                                
+    //                             if(isGBBProduct) {
+    //                                 let modifiedRemoveCartItemElement = gbbExt.cartPageExt.f.getANewElementWithModifiedDeleteFunctions(removeCartItemDiv);
+    //                                 if(modifiedRemoveCartItemElement) {
+    //                                     let originalRemoveCartItemDiv = gbbExt.$(cartItem).find(gbbExt.selectors.cartItemRemoveParentSelectors)
+    //                                     originalRemoveCartItemDiv.after(modifiedRemoveCartItemElement)
+    //                                 }
+    //                                 modifiedRemoveCartItemElement.on("click", (event)=>{
+    //                                     let currentBoxId = modifiedRemoveCartItemElement.attr("gbbBoxID")
+    //                                     event.preventDefault();
+    //                                     event.stopPropagation();
+    //                                     gbbExt.cartPageExtModal.init(currentBoxId);
+    //                                 })
+    //                                 gbbExt.cartPageExt.f.modifyOriginalParentDiv(cartItem, gbbExt.selectors.cartItemRemoveParentSelectors);
+    //                                 gbbExt.cartPageExt.f.modifyQuantitySelectors(cartItem)
+                                   
+    //                             }
+    //                             cartItemElement.attr("gbbModified", true);
+    //                         }
+    //                     }
+    //                 } catch(err) {
+    //                     gbbExt.utility.debugConsole(err)
+    //                 }
+    //             },
+    //             modifyQuantitySelectors: function(cartItem) {
+    //                 try {
+    //                     let quantityDiv = gbbExt.$(cartItem).find(gbbExt.selectors.cartItemQuantityBtnSelectors)
+    //                     quantityDiv.hide();
+    //                 } catch(err) {
+    //                     gbbExt.utility.debugConsole(err);
+    //                 }
+    //             },
+    //             getANewElementWithModifiedDeleteFunctions: function(removeCartItemDiv){
+    //                 try {
+    //                     let newDeleteContainer = gbbExt.$("<div>").addClass("gbbRemoveCartItemDiv").text("Remove");
+    //                     let boxId = removeCartItemDiv.attr("gbbBoxID");
+    //                     newDeleteContainer.attr("gbbBoxID", boxId);
+    //                     return newDeleteContainer;
+    //                 } catch(err) {
+    //                     gbbExt.utility.debugConsole("err inside getANewElementWithModifiedDeleteFunctions:", err);
+    //                 }
+    //             },
+    //             modifyOriginalParentDiv: function(item, elements) {
+    //                 try {
+    //                     elements = elements.split(",");
+    //                     for(let i=0; i<elements.length; i++) {
+    //                         let currentDiv = gbbExt.$(item).find(elements[i]);
+    //                         currentDiv.css("display", "none");
+    //                         return true;
+    //                     }
+    //                 } catch(err) {
+    //                     gbbExt.utility.debugConsole("err inside modifyOriginalParentDiv:" ,err);
+    //                     return false;
+    //                 }
+    //             },
+    //             getRelevantCartProducts: function() {
+    //                 try {
+    //                    let cartData = gbbExt.state.cartData;
+    //                    let allCartItems = cartData.items || [];
+    //                    let result = [];
+    //                    for(let i=0; i<allCartItems.length; i++) {
+    //                         let item = allCartItems[i];
+    //                         if(item && item?.properties) {
+    //                             let properties = Object.keys(item?.properties) || [];
+    //                             if(properties.includes("Box ID")) {
+    //                                 result.push(item);
+    //                             }
+    //                         }
+    //                    }
+    //                    return result;
+    //                 } catch(err) {
+    //                     gbbExt.utility.debugConsole(err);
+    //                 }
+    //             },
+    //             findInCartProductsByLineValue: function(cartData, line) {
+    //                 try {
+    //                     // let allCartItems = await gbbExt.utility.getCart();
+    //                     let allCartItems = cartData.items || [];
+    //                     let item = allCartItems[line+1]
+    //                     if(item && item?.properties) {
+    //                         let properties = Object.keys(item.properties) || [];
+    //                         if (properties.includes("Box ID")) {
+    //                             return item;
+    //                         }
+    //                     }
+    //                     return false;
+    //                 } catch(err) {
+    //                     gbbExt.utility.debugConsole(err)
+    //                 }
+    //             },
+    //             findInCartProductsByKeyValue: function(cartData, key) {
+    //                 try {
+    //                     // let allCartItems = await gbbExt.utility.getCart();
+    //                     let allCartItems = cartData.items || [];
+    //                     for(let i=0; i<allCartItems.length; i++) {
+    //                         let item = allCartItems[i];
+    //                         if(item && item?.properties){
+    //                             let properties = Object.keys(item.properties) || [];
+    //                             if(item.key == key && (properties.includes("Box ID") || properties.includes("Bundle"))) {
+    //                                 return item;
+    //                             }
+    //                         }
+    //                     }
+    //                     return false;
+    //                 } catch(err) {
+    //                     gbbExt.utility.debugConsole(err)
+    //                 }
+    //             },
+    //             determineIfBoxProduct:  function(cartData, removeCartItemElement) { //this function determines if the current element is a box product and if it is, it attaches an attribute data-boxId to it
+    //                 try {
+    //                     //removeCartItemElement -> //element responsible to remove the item from cart
+    //                     let itemHref = removeCartItemElement.attr("href");
+    //                     if(itemHref) {
+    //                         let product;
+    //                         if (itemHref.includes("line")) {
+    //                             // const lineRegex = /line=(\d+)/;
+    //                             // const match = itemHref.match(lineRegex);
+    //                             // const lineValue = match ? match[1] : null;
+    //                             const searchParams = new URLSearchParams(itemHref.split("?")[1]);
+    //                             const lineValue = searchParams.get("line");
+    //                             product = gbbExt.cartPageExt.f.findInCartProductsByLineValue(cartData,lineValue);
+    //                         } else if (itemHref.includes("id")) {
+    //                             const searchParams = new URLSearchParams(itemHref.split("?")[1]);
+    //                             const idValue = searchParams.get("id");
+    //                             product = gbbExt.cartPageExt.f.findInCartProductsByKeyValue(cartData,idValue);
+    //                         }
+    //                         if(product) {
+    //                            let boxId = product["properties"]["Box ID"];
+    //                             removeCartItemElement.attr("gbbBoxID", boxId)
+    //                             return true;
+    //                         }
+    //                         return false;
+    //                     } else {
+    //                         return false;
+    //                     }
+    //                 } catch(err) {
+    //                     gbbExt.utility.debugConsole(err);
+    //                     return false;
+    //                 }
+    //             }
+    //     }
+    // },
+    
+    // gbbExt Code start
+    gbbExtLinkToBundlePage: {
+        state: {
+            isBundleProductPage: false,
+            bundleId: undefined,
+            isGiftCardAddToCartButtonOverwrite: false,
+            isGiftCardBuyNowButtonOverwrite: true,
+            addToCartClicked: false
+        },
+        init: function (settings, parent) {
+            gbbExt.gbbExtLinkToBundlePage.initialize(settings, parent)
+        },
+        initialize: function (settings, parent) {
+            let productHandle = gbbExt.f.getProductPageHandle(settings)
+            let productId = gbbExt.f.getProductPageId(settings)
+            let getBundleLink = undefined 
+            if((productHandle && productHandle != "undefined") || (productId && productId != "undefined")) {
+                getBundleLink = gbbExt.gbbExtLinkToBundlePage.f.gbbExtLinkBundleData(productHandle, productId)
+            }
+            if(getBundleLink) {
+                
+                gbbExt.gbbExtLinkToBundlePage.f.addToCartButtonOverwrite()
+                gbbExt.gbbExtLinkToBundlePage.f.buyNowButtonOverwrite()
+                gbbExt.gbbExtLinkToBundlePage.f.changeAddToCartButtonText(gbbExt.settings.languageData.general.selectBundleProductsText.value)
+                gbbExt.gbbExtLinkToBundlePage.state.isBundleProductPage = true;
+                gbbExt.gbbExtLinkToBundlePage.state.stepsConfigurationData = getBundleLink.stepsConfigurationData
+                gbbExt.gbbExtLinkToBundlePage.f.addGbbExtClass();
+                gbbExt.gbbExtLinkToBundlePage.f.addGbbExtDummyProductPageStyling();
+            }
+        },
+        f: {
+            addToCartButtonOverwrite: function () {
+
+                // set required states 
+                gbbExt.gbbExtLinkToBundlePage.state.isGiftCardAddToCartButtonOverwrite = true
+                
+                gbbExt.elements.addToCartBtn.attr("type", "button")
+                gbbExt.elements.addToCartBtn.attr("disabled", false)
+
+                // @ashfaq did this
+                gbbExt.elements.addToCartBtn.addClass("gbbExtLinkToBundlePage")
+                
+                gbbExt.elements.addToCartBtn.unbind().unbind("click").off().off("click");
+
+                gbbExt.elements.addToCartBtn.on("click", function (event) {
+                        if(event.stopImmediatePropagation){
+                            event.stopImmediatePropagation();
+                        }
+
+                        //gbbExt.gbbExtLinkToBundlePage.state.bundleId
+                        let listOfBundleIdsForDummyProductAsDefault = gbbExt.settings.app.listOfBundleIdsForDummyProductAsDefault  
+                        
+
+                        // gbbExt.$(this).attr("disabled", true);
+                        // setTimeout(() => { gbbExt.$(this).attr("disabled", false); }, 1000)
+                        // gbbExt.gktGiftCard.action.giftCardAddToCartButton(event)
+
+                        //getSelectedVariant
+                        let currentVariant = gbbExt.f.getSelectedVariant();
+                        let currentVariantId = currentVariant;
+                        let bundleProductData = gbbExt.settings.bundleLinkVariantIdMap.get(parseInt(currentVariantId))
+                        let activeBundleId = bundleProductData.bundleId
+                        if(bundleProductData && bundleProductData.bundleId) {
+                            gbbExt.gbbExtLinkToBundlePage.state.bundleId = bundleProductData.bundleId
+                            activeBundleId = bundleProductData.bundleId
+                        }
+
+                        let isCurrentBundleIdForDummyProductAsDefault = gbbExt.settings?.bundleLinkDataByBundleId[activeBundleId].useLinkProductAsDefaultProduct
+                    
+                        // // if it is "0". then it means all bundles are allowed
+                        // if (listOfBundleIdsForDummyProductAsDefault.length == 0) {
+                        //     isCurrentBundleIdForDummyProductAsDefault = true
+                        // } else if(listOfBundleIdsForDummyProductAsDefault.length > 0) {
+                        //     listOfBundleIdsForDummyProductAsDefault = listOfBundleIdsForDummyProductAsDefault.map((item)=>parseInt(item))
+                        //     isCurrentBundleIdForDummyProductAsDefault = listOfBundleIdsForDummyProductAsDefault.includes(parseInt(gbbExt.gbbExtLinkToBundlePage.state.bundleId));
+                        // }
+                        
+                        if(isCurrentBundleIdForDummyProductAsDefault) {
+                            let setDataForBundlePage = gbbExt.gbbExtLinkToBundlePage.f.setDataForBundlePage()
+                        }
+
+
+
+                        //get current page locale
+
+                        // let localePresentInUrl = window.location.pathname.split("/")|| "";
+                        // // now get locale from Shopify.locale   
+                        // let currentShopifyLocale = Shopify.locale || "";
+
+                        // let regionalLocale = "";
+
+                        // if(currentShopifyLocale && currentShopifyLocale != "" && localePresentInUrl ) {
+                        //     // check if both are same
+                        //     if(currentShopifyLocale == localePresentInUrl[1]) {
+                        //         regionalLocale = `/${currentShopifyLocale}`
+                        //     } else if(localePresentInUrl[1].includes(currentShopifyLocale)) {
+                        //         // this is for cases when locale is en-us and url is en
+                        //         regionalLocale = `/${localePresentInUrl[1]}`
+                        //     } else {
+                                
+                        //     }
+                        // }
+
+
+
+                        // // let currentLocale = window.location.pathname.split("/")|| "";
+                        // let location = regionalLocale + "/apps/gbb/builder/" + gbbExt.gbbExtLinkToBundlePage.state.bundleId
+                        let location = gbbExt.gbbExtLinkToBundlePage.f.getBundleUrl(gbbExt.gbbExtLinkToBundlePage.state.bundleId)
+                        window.location.href = location
+                        gbbExt.gbbExtLinkToBundlePage.f.changeAddToCartButtonText(gbbExt.settings.languageData.general.redirectingText.value)
+                        gbbExt.gbbExtLinkToBundlePage.state.addToCartClicked = true
+                        return
+                })
+                return 
+
+            },
+            getBundleUrl: function (bundleId) {
+                try {
+                    // Split the pathname from the window location to get segments
+                    let localePresentInUrl = window.location.pathname.split("/") || "";
+                    // Get the current locale from Shopify
+                    let currentShopifyLocale = Shopify.locale || "";
+                
+                    let regionalLocale = "";
+                
+                    // Check if the Shopify locale and the locale present in the URL match or if one includes the other
+                    if (currentShopifyLocale && currentShopifyLocale !== "" && localePresentInUrl) {
+                        if (currentShopifyLocale === localePresentInUrl[1]) {
+                            regionalLocale = `/${currentShopifyLocale}`;
+                        } else if (localePresentInUrl[1].includes(currentShopifyLocale)) {
+                            // This case handles when the locale is a subset like 'en-us' in the URL being 'en'
+                            regionalLocale = `/${localePresentInUrl[1]}`;
+                        } else {
+                            // If there's no match or inclusion, regionalLocale remains an empty string
+                        }
+                    }
+                
+                    // Construct the location URL using the regionalLocale and the given bundleId
+                    let bundleUrl = regionalLocale + "/apps/gbb/builder/" + bundleId;
+                    return bundleUrl;
+                } catch (error) {
+                    gbbExt.utility.debugConsole("error in getBundleUrl", error);
+                }
+            },
+            
+
+            buyNowButtonOverwrite: function () {
+                // set required states 
+                gbbExt.gbbExtLinkToBundlePage.state.isGiftCardBuyNowButtonOverwrite = true
+
+                if (gbbExt.$(document).find(gbbExt.selectors.buyNowBtn)) {
+                    // gbbExt.$(document).find(gbbExt.selectors.buyNowBtn).hide()
+                    let buyNowBtnEle =  gbbExt.$(document).find(gbbExt.selectors.buyNowBtn)
+                    buyNowBtnEle.css("visibility", "hidden")
+                    buyNowBtnEle.css("height", "0")
+                    buyNowBtnEle.css("width", "0")
+                    buyNowBtnEle.css("padding", "0")
+                    buyNowBtnEle.css("margin", "0")
+                    buyNowBtnEle.css("line-height", "0");
+                    buyNowBtnEle.css("min-height", "0");
+                }
+            },
+            changeAddToCartButtonText: function (insideHtml) {
+                if (gbbExt.gbbExtLinkToBundlePage.state.isGiftCardAddToCartButtonOverwrite) {
+                    gbbExt.elements.addToCartBtn.html(insideHtml)
+                } else {
+                    return false
+                }
+
+            },
+            addGbbExtClass: function () {
+                try{
+                    gbbExt.$("html").addClass("gbbExtLinkToBundlePage-HTML")
+                    // add custom styling;
+                }catch(err){
+                    gbbExt.utility.debugConsole("error in addGbbExtClass", err)
+                }
+
+            },
+            addGbbExtDummyProductPageStyling: function () {
+                try{
+                    let customStyleForDummyPages = gbbExt.settings.app.customStyleForDummyProductPage;
+                    if(customStyleForDummyPages){
+                        let styleSheetForDummyProduct = document.createElement("style")
+                        styleSheetForDummyProduct.innerText = customStyleForDummyPages
+                        document.body.appendChild(styleSheetForDummyProduct)
+                    }
+                }catch(err){
+                    gbbExt.utility.debugConsole("error in addGbbExtDummyProductPageStyling", err)
+                }
+            },
+            gbbExtLinkBundleData: function(productHandle, productId){
+                try {
+
+
+                    //set bundleLinkData with variant as well
+
+                    if(productId != undefined && productId != "undefined") {
+                        let bundleProductData = gbbExt.settings.bundleLinkProductIdMap.get(parseInt(productId))
+                        gbbExt.gbbExtLinkToBundlePage.state.bundleId = bundleProductData?.bundleId
+                        gbbExt.gbbExtLinkToBundlePage.state.bundleProductData = bundleProductData
+                    
+                        // gbbExt.
+                        return bundleProductData?.bundleId 
+                    } else if(productHandle != undefined && productHandle != "undefined") {
+                        let bundleProductData = gbbExt.settings.bundleLinkProductHandleMap.get(productHandle)
+                        gbbExt.gbbExtLinkToBundlePage.state.bundleId = bundleProductData?.bundleId
+                        gbbExt.gbbExtLinkToBundlePage.state.bundleProductData = bundleProductData
+
+                        return bundleProductData?.bundleId
+                    } 
+
+                } catch (error) {
+                    gbbExt.utility.debugConsole("error in gbbExtLinkBundleData", error);
+                    return;
+                }
+
+            },
+            setDataForBundlePage: function(){
+                try {
+                    // if (gbbExt?.settings?.app?.useLinkProductAsDefaultProduct) {
+                      let currentVariant = gbbExt.f.getSelectedVariant();
+                      let currentVariantId = currentVariant;
+                      let currentProductHandle = gbbExt.f.getProductPageHandle();
+                      let currentProductId =  gbbExt.f.getProductPageId();
+                      //now lets set this in an object in the session storage
+                      // extraProductsForDefaultProducts
+                      let extraInfoFromLinkDummyProductPage = {
+                        dummyProductsData : [
+                            {
+                                handle: currentProductHandle,
+                                productId: currentProductId, //comeback
+                                variants: [
+                                  {
+                                    variantId: currentVariantId,
+                                  },
+                                ],
+                            }
+                        ],
+                        addDummyProductToDefaultProducts: true,
+                      };
+
+                      let extraInfoFromLinkDummyProductPageString = JSON.stringify(extraInfoFromLinkDummyProductPage);
+                      sessionStorage.setItem("extraInfoFromLinkDummyProductPage", extraInfoFromLinkDummyProductPageString);
+                      return true;
+                    // }
+                } catch (error) {
+                    gbbExt.utility.debugConsole("error in setDataForBundlePage", error);
+                    return;
+                }
+            },
+            
+        },
+
+        events: function (settings) {
+             
+
+           
+        },
+        action: {
+        }
+    },
+    gbbExtBundleProductInCart: {
+        state: {
+            DefaultBundleImage: `https://gift-box-builder-app4.s3.us-east-2.amazonaws.com/public/default_bundle_image.jpg`
+        },
+        init: function(settings) {
+            try{
+                gbbExt.gbbExtBundleProductInCart.f.showBundleAsOneProduct(settings);
+            }catch(error){
+                gbbExt.utility.debugConsole("error in gbbExtBundleProductInCart init", error)
+            }  
+        },
+        f: {
+            showBundleAsOneProduct: async function(settings){
+
+                try{
+                    let checkIfShowBundleAsProductEnabled = gbbExt.settings.app.checkIfShowBundleAsProductEnabled;
+                    let selectorToRenderBundleProduct = gbbExt.settings.app.selectorToRenderBundleProduct;
+                    if(checkIfShowBundleAsProductEnabled && selectorToRenderBundleProduct  && selectorToRenderBundleProduct !=""){
+
+                        // check for cart data, if presetnt or not
+                        if(typeof gbbExt.state.cartData == "undefined"){
+                            // get cart data
+                            gbbExt.state.cartData = await gbbExt.utility.getCart();
+                        }
+
+                        const items = gbbExt.state.cartData.items;
+                        const bundles = new Map();
+                        for(let i=0; i<items.length; i++) {
+                            let cartItem = items[i];
+                            if(cartItem && cartItem?.properties["Box ID"]) {
+                                let properties = Object.keys(cartItem.properties) || [];
+                                let productTitle =  cartItem.title || cartItem.product_title
+                                if(properties.includes("Box ID")) {
+                                    let boxId = cartItem.properties["Box ID"];
+                                    if(bundles.has(boxId)) {
+                                        let bundle = bundles.get(boxId);
+                                        bundle.bundleContains = bundle.bundleContains + `${productTitle} x${cartItem.quantity}<br/>`;
+                                        bundle.bundleQuantity = bundle.bundleQuantity + cartItem.quantity;
+                                        bundle.bundlePrice = bundle.bundlePrice + cartItem.original_line_price;
+                                        bundle.bundleDiscountedPrice = bundle.bundleDiscountedPrice + cartItem.final_line_price;
+                                        bundle.bundleProducts.push(cartItem);
+                                        bundles.set(boxId, bundle);
+                                    } else {
+                                        let bundleData = {
+                                            boxId: boxId,
+                                            bundleTitle: cartItem.properties["Bundle"],
+                                            bundleContains: `${productTitle}  x${cartItem.quantity}<br/>` ,
+                                            bundleQuantity: cartItem.quantity,
+                                            bundlePrice: cartItem.original_line_price,
+                                            bundleDiscountedPrice: cartItem.final_line_price,
+                                            bundleProducts: [cartItem]
+                                        }
+                                        bundles.set(boxId, bundleData);
+                                    }
+                                }
+                            }
+                        
+                        }
+                        
+                        // gbbExt.utility.debugConsole("bundles", bundles);
+                        let HTMLmsg = gbbExt.gbbExtBundleProductInCart.f.gbbExtBubdlesInCartPrepareUI(bundles);
+                        gbbExt.gbbExtBundleProductInCart.f.gbbExtInsertIntoPageWrapper(HTMLmsg);
+                        return;
+                    }
+
+
+                }catch(err){
+                    gbbExt.utility.debugConsole("error in showBundleAsOneProduct" , err)
+                }
+                
+            },
+            // add try catch
+            gbbExtBubdlesInCartPrepareUI: function(bundleMap){
+                try{
+                    let gbbExtBundlesHTMLContainer = gbbExt.$("<div>").addClass("gbbExtBundlesHTMLContainer");
+                    bundleMap.forEach((bundle, key)=>{
+                        let bundleData = bundleMap.get(key);
+                        let gbbExtBundleHTMLContainer = gbbExt.$("<div>").addClass("gbbExtBundleHTMLContainer");
+                        
+                        let gbbExtBundleImageContainer = gbbExt.$("<div>").addClass("gbbExtBundleImageContainer");
+                        let gbbExtBundleImage = gbbExt.$("<img>").addClass("gbbExtBundleImage");
+                        const resultObject = gbbExt.settings.bundleLinkData.find((obj) => obj.bundleName == bundleData.bundleTitle);
+                        gbbExt.utility.debugConsole('result object ->', resultObject)
+                        let BundleImageSrc = resultObject?.bundleImg || gbbExt.gbbExtBundleProductInCart.state.DefaultBundleImage; ;
+                        gbbExtBundleImage.attr("src", BundleImageSrc);
+                        gbbExtBundleImageContainer.append(gbbExtBundleImage);
+
+                        let gbbExtBundleTextContainer = gbbExt.$("<div>").addClass("gbbExtBundleTextContainer");
+                        let gbbExtBundleTitle = gbbExt.$("<div>").addClass("gbbExtBundleTitle");
+                        let gbbExtBundleTitleLabel = gbbExt.$("<div>").addClass("gbbExtBundleTitleLabel").text(`Title: `);
+                        let gbbExtBundleTitleValue = gbbExt.$("<div>").addClass("gbbExtBundleTitleValue").text(bundleData.bundleTitle);
+
+                        gbbExtBundleTitle.append(gbbExtBundleTitleLabel);
+                        gbbExtBundleTitle.append(gbbExtBundleTitleValue);
+
+                        let gbbExtBundleId = gbbExt.$("<div>").addClass("dbbExtBundleId");
+                        let gbbExtBundleIdLabel = gbbExt.$("<div>").addClass("gbbExtBundleIdLabel").text(`Box ID: `);
+                        let gbbExtBundleIdValue = gbbExt.$("<div>").addClass("gbbExtBundleIdValue").text(bundleData.boxId);
+
+                        gbbExtBundleId.append(gbbExtBundleIdLabel);
+                        gbbExtBundleId.append(gbbExtBundleIdValue);
+
+
+                        let gbbExtBundleContentsText = gbbExt.$("<div>").addClass("gbbExtBundleContentsText");
+                        let gbbExtBundleContentsTextLabel = gbbExt.$("<div>").addClass("gbbExtBundleContentsTextLabel").text(`Items: `);
+                        let gbbExtBundleContentsTextValue = gbbExt.$("<div>").addClass("gbbExtBundleContentsTextValue").html(bundleData.bundleContains);
+
+                        gbbExtBundleContentsText.append(gbbExtBundleContentsTextLabel);
+                        gbbExtBundleContentsText.append(gbbExtBundleContentsTextValue);
+
+                        gbbExtBundleTextContainer.append(gbbExtBundleTitle);
+                        gbbExtBundleTextContainer.append(gbbExtBundleId);
+                        gbbExtBundleTextContainer.append(gbbExtBundleContentsText);
+
+                        let gbbExtPriceAndRemoveContainer = gbbExt.$("<div>").addClass("gbbExtPriceAndRemoveContainer");
+                        let gbbExtPriceContainer = gbbExt.$("<div>").addClass("gbbExtPriceContainer");
+                        
+                        let gbbExtBundleOriginalPriceContainer = gbbExt.$("<div>").addClass("gbbExtBundleOriginalPriceContainer").text(gbbExt.utility.formatPrice(bundleData.bundlePrice));
+                        let gbbExtBundleDiscountedPrice = gbbExt.$("<div>").addClass("gbbExtBundleDiscountedPrice").text(gbbExt.utility.formatPrice(bundle.bundleDiscountedPrice));
+                        
+                        // gbbExtPriceContainer.append(gbbExtBundleOriginalPriceContainer);
+                        if(bundleData.bundlePrice != bundleData.bundleDiscountedPrice) {
+                            gbbExtPriceContainer.append(gbbExtBundleOriginalPriceContainer);
+                            // gbbExtPriceContainer.addClass("gbbExtNoDiscountPrice");
+                        }
+                        gbbExtPriceContainer.append(gbbExtBundleDiscountedPrice);
+                        if(gbbExt.state.page_type != "cart"){
+                            gbbExtBundleHTMLContainer.addClass("gbbExtBundleHTMLContainerSideCart")
+                            gbbExtBundleTitle.addClass('gbbExtSideCartBundleTitle');
+                        }
+
+                        let gbbExtBundleRemoveContainerButton = gbbExt.$("<div>").addClass("gbbExtBundleRemoveContainerButton");
+                        let gbbExtBundleRemoveButton = gbbExt.$("<div>").addClass("gbbExtBundleRemoveButton").text("Remove")
+                        let boxId = bundleData.boxId
+                        gbbExtBundleRemoveButton.attr("boxId", boxId);
+                        gbbExtBundleRemoveContainerButton.append(gbbExtBundleRemoveButton);
+
+                        gbbExtPriceAndRemoveContainer.append(gbbExtPriceContainer);
+                        gbbExtPriceAndRemoveContainer.append(gbbExtBundleRemoveContainerButton);
+
+                        gbbExtBundleHTMLContainer.append(gbbExtBundleImageContainer);
+                        gbbExtBundleHTMLContainer.append(gbbExtBundleTextContainer);
+                        gbbExtBundleHTMLContainer.append(gbbExtPriceAndRemoveContainer);
+
+                        gbbExtBundlesHTMLContainer.append(gbbExtBundleHTMLContainer);
+                    })
+
+                    return gbbExtBundlesHTMLContainer;
+                }catch(err){
+                    gbbExt.utility.debugConsole("error inside gbbExtBubdlesInCartPrepareUI", err);
+                }
+                
+            },
+            gbbExtInsertIntoPageWrapper: function(HTMLmsg){
+                try{
+
+                    if(gbbExt.state.page_type == "cart"){
+                        let gbbExtPageWrapper = gbbExt.$(document).find(gbbExt.settings.app.selectorToRenderBundleProduct);
+                        gbbExt.gbbExtBundleProductInCart.f.gbbExtInsertIntoPageOnPosition(HTMLmsg, gbbExtPageWrapper, gbbExt.settings.app.selectorToRenderBundlePostionOnCart)
+                    }else{
+                        let gbbExtPageWrapper = gbbExt.$(document).find(gbbExt.settings.app.selectorToRenderBundleProductOnSideCart);
+                        gbbExt.gbbExtBundleProductInCart.f.gbbExtInsertIntoPageOnPosition(HTMLmsg, gbbExtPageWrapper, gbbExt.settings.app.selectorToRenderBundlePostionOnSideCart)
+                        
+                    }
+                    return;
+
+                }catch(error){
+                    gbbExt.utility.debugError("error inside gbbExtInsertIntoPageWrapper",  error);
+                }
+            },
+            gbbExtInsertIntoPageOnPosition: function(HTMLmsg, selector, position){
+                // simplify this code block
+
+                // gbbExtBundlesHTMLContainer -> 
+                
+                let HTMLmsgClone = HTMLmsg.clone();
+
+                // if gbbExtBundlesHTMLContainer is already present then just .html it and return
+                if(gbbExt.$(".gbbExtBundlesHTMLContainer").length > 0){
+                    gbbExt.$(".gbbExtBundlesHTMLContainer").html(HTMLmsgClone.html());
+                    return;
+                }
+
+
+                // selector.each(function () {
+
+                // let elementClone = HTMLmsgClone.clone(); // Clone for each iteration to avoid detachment
+                // if (position === "Below") {
+                //     gbbExt.$(this).parent().append(elementClone);
+                // } else if (position === "Over") {
+                //     gbbExt.$(this).parent().prepend(elementClone);
+                // }
+                
+
+                if(position == "Below"){
+                    selector.each(function (index) {
+                        gbbExt.$(this).parent().append(HTMLmsgClone);
+                    });
+
+                }else if(position == "Over"){
+                    selector.each(function (index) {
+                                gbbExt.$(this).parent().prepend(HTMLmsgClone);
+                    });
+                }
+
+                
+
+            },
+            eventListenerForRemovingBundlesFromCart: function(){
+                // write in jquery ->
+                gbbExt.$(document).ready(function() {
+                    gbbExt.$(".gbbExtBundleRemoveButton").on("click", function(event) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        gbbExt.utility.debugConsole("clicked delete bundles");
+                        const boxId = gbbExt.$(this).attr("boxid");
+                        gbbExt.cartPageExtModal.init(boxId);
+                    });
+                });
+            },
+            registerEvents: function(){
+                try{
+
+                    gbbExt.gbbExtBundleProductInCart.f.eventListenerForRemovingBundlesFromCart();
+
+                }catch(error){
+                    gbbExt.utility.debugError("error inside register events" , error)
+                }
+            },
+        }
+    },
+
+    
+
+
+/**
+ * bundleSettings: [{
+ *  bundleId: "",
+ *  bundleName: "",
+ *  bundleLink: "",
+ *  bundleActivePages: {
+ *  cartPage : boolean,
+ *  productPage: boolean,
+ *  specificProductPage: []<list of product pages>
+ *  specificCollectionPage: []<list of collection pages>
+ *  },
+ * }]
+ */
+
+    gbbExtBundleUpsell:{
+        state:{
+            bundlesLinks: [],
+            bundleSettings: [],
+            textSettings: "",
+         },
+        init: function(settings) {
+            try{
+                gbbExt.gbbExtBundleUpsell.f.initialize(settings);
+            }catch(e){
+                gbbExt.utility.debugConsole("error in gbbExtBundleUpsell init", e)
+                // gbbExt.f.debugConsole("error in gbbExtBundleUpsell init", e)
+            }
+        },
+        f: {
+            initialize: function(settings) {
+                try{
+                    // gbbExt.gbbExtBundleUpsell.f.setBundleSettings(settings);
+                    // gbbExt.gbbExtBundleUpsell.f.setBundleLinks(settings);
+                    // gbbExt.gbbExtBundleUpsell.f.setBundleTextSettings(settings);
+
+                    gbbExt.gbbExtBundleUpsell.f.insertWrapperOnPage();
+
+                    let allCollectionsForThisProduct = gbbExt.f.getThisProductsCollections(settings)
+                    let productIdForThisProduct = gbbExt.f.getProductPageId(settings);
+                    let allRelevantBundleLinks = gbbExt.gbbExtBundleUpsell.f.getAllRelevantBundleLinks({allCollectionsForThisProduct, productIdForThisProduct});
+                    // find unique bundleIds from allRelevantBundleLinks
+                    allRelevantBundleLinks = allRelevantBundleLinks.filter((item, index, self) =>
+                        index === self.findIndex((t) => (
+                            t.bundleId === item.bundleId
+                        ))
+                    )
+
+                    let gbbExtBundleUpsellContainer = gbbExt.$("<div>").addClass("gbbExtBundleUpsellContainer");
+                    if(allRelevantBundleLinks.length>0) {
+                        for (let i = 0; i < allRelevantBundleLinks.length; i++) {
+                            let item = allRelevantBundleLinks[i];
+                            let bundleUpsellUI = gbbExt.gbbExtBundleUpsell.f.prepareBundleUpsellUI(item);
+                            gbbExtBundleUpsellContainer.append(bundleUpsellUI);
+                        }
+
+                        // insert into page
+                    }else {
+                        // add display none to the wrapper class 
+                        // gbbExtBundleUpsellWrapper
+                        // gbbExt.$(document).find(gbbExt.selectors.gbbExtBundleUpsellWrapper).addClass("gbbExtHide");
+                        gbbExt.$(document).find(gbbExt.selectors.gbbExtBundleUpsellWrapper).addClass("gbbExtHide");
+                    }
+
+                    if (gbbExtBundleUpsellContainer.length > 0) {
+                        gbbExt.gbbExtBundleUpsell.f.insertIntoWrapper(gbbExtBundleUpsellContainer);
+                    }
+
+
+                }catch(e){
+                    gbbExt.utility.debugConsole("error in gbbExtBundleUpsell initialize", e)
+                }
+            },
+
+            getAllRelevantBundleLinks: function({allCollectionsForThisProduct, productIdForThisProduct}){
+                try{
+                    // bundleLinkCollectionIdMap
+                    // bundleLinkCollectionHandleMap
+
+                    // use these two state variables from gbbExt.settings to figure out if the current product.collections include and are relevant to any bundle
+                    let allRelevantBundleLinks = [];
+
+                    for (let i = 0; i < allCollectionsForThisProduct.length; i++) {
+                        let collection = allCollectionsForThisProduct[i];
+                        let collectionId = parseInt(collection.id);
+                        let collectionHandle = collection.handle;
+                        let collectionBundleLinks = gbbExt.settings.bundleUpsellSettings.bundleUpsellCollectionIdMap.get(collectionId);
+                        if(collectionBundleLinks &&  (collectionBundleLinks).length > 0){
+                            for (let j = 0; j < collectionBundleLinks.length; j++) {
+                                let collectionBundleLink = collectionBundleLinks[j];
+                                allRelevantBundleLinks.push({
+                                    bundleId : collectionBundleLink.bundleId,
+                                    bundleLink : collectionBundleLink.bundleLink,
+                                    collectionHandle: collectionHandle,
+                                    collectionId: collectionId
+                                 })
+                            } 
+                            // allRelevantBundleLinksCollectionIds.push(collectionId);
+                            // allRelevantBundleLinksCollectionHandles.push(collectionHandle);
+                            // allRelevantBundleLinks = allRelevantBundleLinks.concat(collectionBundleLinks);
+                        }
+                    }
+
+                    // check if productId is present in any of the bundleUpsellSettings.bundleUpsellProductIdMap
+                    let productBundleLinks = gbbExt.settings.bundleUpsellSettings.bundleUpsellProductIdMap.get(productIdForThisProduct);
+                    if(productBundleLinks && productBundleLinks.length > 0){
+                        for (let i = 0; i < productBundleLinks.length; i++) {
+                            let productBundleLink = productBundleLinks[i];
+                            allRelevantBundleLinks.push({
+                                bundleId : productBundleLink.bundleId,
+                                bundleLink : productBundleLink.bundleLink,
+                                productId: productIdForThisProduct
+                            })
+                        }
+                    }
+                    
+                    
+                    return allRelevantBundleLinks;
+                }catch(e){
+                    gbbExt.utility.debugConsole("error in getAllRelevantBundleLinks", e)
+                }
+            },
+            insertIntoWrapper: function(gbbExtBundleUpsellContainer){
+                try{
+                    let gbbExtBundleUpsellWrapper = gbbExt.$(document).find(gbbExt.selectors.gbbExtBundleUpsellWrapper);
+                    // gbbExt.gbbExtBundleUpsell.f.
+
+                    if (gbbExtBundleUpsellWrapper.length > 0) {
+                        gbbExtBundleUpsellWrapper.append(gbbExtBundleUpsellContainer);
+                    }
+                    // else if add it below the add to cart button;
+
+
+
+
+                }catch(e){
+                    gbbExt.utility.debugConsole("error in insertIntoWrapper", e)
+                }
+            },
+            insertWrapperOnPage: function(){
+                try{
+
+                    let isThereExistingWrapper = gbbExt.$(document).find(gbbExt.selectors.gbbExtBundleUpsellWrapper);
+
+                    if(isThereExistingWrapper.length > 0){
+                        return;
+                    }else {
+                        let gbbExtBundleUpsellWrapper = gbbExt.$("<div>").addClass("gbbExtBundleUpsellWrapper");
+                        // gbbExt.$(document).find(gbbExt.settings.app.selectorToRenderBundleUpsell).append(gbbExtBundleUpsellWrapper);
+                        // gbbExt.$(document).find(gbbExt.settings.app.selectorToRenderBundleUpsell).append(gbbExtBundleUpsellWrapper);  
+                        // add after it 
+                        gbbExt.$(document).find(gbbExt.settings.app.selectorToRenderBundleUpsell).after(gbbExtBundleUpsellWrapper); 
+                    }
+                    return;
+                }catch(e){
+                    gbbExt.utility.debugConsole("error in insertWrapperOnPage", e)
+                }
+            },
+            prepareBundleUpsellUI: function(item){
+                try{
+                    let languageData = {
+                        // bundleRedirectButtonText: `Save more with our bundle upsell - ${item.bundleId}`,
+                        // bundleRedirectButtonLoadingText: "Redirecting",
+                        // bundleRedirectButtonText: gbbExt.settings.bundleUpsellData[item.bundleId].bundleUpsellConfig.bundleWidgetText,
+                        // bundleRedirectButtonLoadingText: gbbExt.settings.bundleUpsellData[item.bundleId].bundleUpsellConfig.bundleWidgetRedirectText
+                        // bundleWidgetRedirectText
+                        bundleRedirectButtonText:  gbbExt.settings.bundleLinkDataByBundleId[item.bundleId]?.bundleUpsellConfig?.bundleWidgetText ||gbbExt.settings.bundleUpsellData[item.bundleId].bundleUpsellConfig.bundleWidgetText,
+
+                        bundleRedirectButtonLoadingText: gbbExt.settings.bundleLinkDataByBundleId[item.bundleId]?.bundleUpsellConfig?.bundleWidgetRedirectText || gbbExt.settings.bundleUpsellData[item.bundleId].bundleUpsellConfig.bundleWidgetRedirectText
+                    
+                        // bundleUpsellTitleText : "Bundle Upsell",
+                        // bundleUpsellBodyText : `Save more with our bundle upsell - ${item.bundleId}`
+                    }
+                    let gbbExtBundleUpsell = gbbExt.$("<div>").addClass("gbbExtBundleUpsell").attr("bundleId", item.bundleId);
+                    // let gbbExtBundleUpsellTitle = gbbExt.$("<div>").addClass("gbbExtBundleUpsellTitle").html(languageData.bundleUpsellTitleText);
+                    // gbbExtBundleUpsell.append(gbbExtBundleUpsellTitle);
+                    let gbbExtBundleUpsellBody = gbbExt.$("<div>").addClass("gbbExtBundleUpsellBody");
+                    // let gbbExtBundleUpsellBodyText = gbbExt.$("<div>").addClass("gbbExtBundleUpsellBodyText").html(languageData.bundleUpsellBodyText);
+                    
+                    gbbExtBundleUpsell.append(gbbExtBundleUpsellBody);
+
+                    let gbbExtBundleUpsellActionContainer = gbbExt.$("<div>").addClass("gbbExtBundleUpsellActionContainer");
+
+                    let bundleRedirectButton = gbbExt.$("<div>").addClass("gbbExtBundleRedirectButton").html(languageData.bundleRedirectButtonText || "89s");
+                    // add a conditon to check if createdAt is greater than or equal to today's data then update the configs 
+                    let releaseDate = new Date("2024-12-05");// TBD @ashfaq
+                    let _createdAt = new Date(gbbExt.settings?.pageCustomizationData?.createdAt);
+                    let applyNewConfigs = _createdAt >= releaseDate;
+                    if (applyNewConfigs) {
+                        bundleRedirectButton.css({
+                            "background-color": gbbExt.settings?.pageCustomizationData?.bundleUpSellButtonBg,
+                            "border-color": gbbExt.settings?.pageCustomizationData?.bundleUpSellButtonBorderColor,
+                            "color": gbbExt.settings?.pageCustomizationData?.bundleUpsellTextColor
+                        })
+                    }
+                    gbbExtBundleUpsellActionContainer.append(bundleRedirectButton);
+                    gbbExtBundleUpsell.append(gbbExtBundleUpsellActionContainer);
+
+                    // an action to take the click to the bundle page
+                    bundleRedirectButton.on("click", function(event){
+                        event.preventDefault();
+                        event.stopPropagation();
+                        bundleRedirectButton.html(languageData.bundleRedirectButtonLoadingText);
+
+                       
+
+                        let isCurrentBundleIdForDummyProductAsDefault = gbbExt.settings?.bundleLinkDataByBundleId[item.bundleId].useLinkProductAsDefaultProduct || gbbExt.settings?.bundleLinkDataByBundleId[item.bundleId].bundleUpsellConfig.useLinkProductAsDefaultProduct
+                    
+                        // // if it is "0". then it means all bundles are allowed
+                        // if (listOfBundleIdsForDummyProductAsDefault.length == 0) {
+                        //     isCurrentBundleIdForDummyProductAsDefault = true
+                        // } else if(listOfBundleIdsForDummyProductAsDefault.length > 0) {
+                        //     listOfBundleIdsForDummyProductAsDefault = listOfBundleIdsForDummyProductAsDefault.map((item)=>parseInt(item))
+                        //     isCurrentBundleIdForDummyProductAsDefault = listOfBundleIdsForDummyProductAsDefault.includes(parseInt(gbbExt.gbbExtLinkToBundlePage.state.bundleId));
+                        // }
+                        
+                        if(isCurrentBundleIdForDummyProductAsDefault) {
+                            let setDataForBundlePage = gbbExt.gbbExtLinkToBundlePage.f.setDataForBundlePage()
+                        }
+
+
+                        let location = gbbExt.gbbExtLinkToBundlePage.f.getBundleUrl(item.bundleId)
+                        window.location.href = location
+                        // window.location.href = item.bundleLink;
+                    });
+
+
+                    // an action to take the click to the bundle page
+                    // gbbExtBundleUpsell.on("click", function(event){
+
+                    return gbbExtBundleUpsell;
+                }catch(e){
+                    gbbExt.utility.debugConsole("error in prepareBundleUpsellUI", e)
+                }
+            },
+        }
+    },
+}
+
+window.gbbExt = gbbExt;
+
+let gbbExtCodeActive = false;
+document.addEventListener("DOMContentLoaded", function(event) { 
+    //do work
+    // check if its bundle builder product execute the rest of the flow
+  gbbExt.utility.debugConsole("Gift Box Builder")
+  if(gbbExtCodeActive == false ) {
+    gbbExtCodeActive = true;
+    gbbExtUtils.f.loadJquery(function (jqueryRefObj) {
+        gbbExt.$ = jqueryRefObj;
+            gbbExt.f.initialize(gbbExt.$);
+    })
+  }
+});
+
+setTimeout(function(){
+    if(gbbExtCodeActive == false){
+        gbbExtCodeActive = true;
+        gbbExtUtils.f.loadJquery(function (jqueryRefObj) {
+            gbbExt.$ = jqueryRefObj;
+                gbbExt.f.initialize(gbbExt.$);
+        })
+    }
+
+}, 3000)

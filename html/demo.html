@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Button Controlled Backgrounds</title>
+    <style>
+        .block10 {
+    height: 75vh;
+    width: 100%;
+    /* background-color: aquamarine; */
+    padding-top: 10px;
+    background: linear-gradient(to bottom, #fdf4ef, #f7e2e8);
+}
+
+.main {
+    height: 60vh;
+    width: 55vw;
+    background-color: aquamarine;
+    border-radius: 30px;
+    margin-top: 50px;
+    margin-left: 400px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+    position: relative;
+}
+
+.imgdiv {
+    height: 100%;
+    width: 100%;
+    display: flex;
+    transition: transform 0.5s ease-in-out;
+}
+
+.imgdiv .image {
+    height: 100%;
+    width: 100%;
+    flex-shrink: 0;
+    background-size: cover;
+    background-position: center;
+    display: flex;
+}
+
+.image .text {
+    height: 60vh;
+    width: 30vw;
+    background-color: white;
+}
+
+.text h2 {
+    margin-top: 150px;
+    margin-left: 30px;
+    font-size: 2rem;
+    background: linear-gradient(166.48deg, #603000 33.07%, #000000 119.81%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.text p {
+    margin-left: 30px;
+    margin-top: 10px;
+    font-size: 1.2rem;
+    margin-right: 100px;
+    text-align: left;
+    line-height: 30px;
+    color: rgba(0, 0, 0, 0.767);
+}
+
+.image .img {
+    height: 60vh;
+    width: 30vw;
+    background-color: bisque;
+}
+
+.image .img img {
+    height: 60vh;
+    width: 100%;
+}
+
+.sub {
+    background: url(https://www.mivi.in/cdn/shop/files/tfgy_1.png?v=1721276144);
+    width: 20vw;
+    height: 10vh;
+    margin-bottom: 30px;
+    margin-left: -550px;
+    position: absolute;
+    bottom: 10px;
+    display: flex;
+    gap: 10px;
+    border-radius: 30px;
+}
+
+.button {
+    height: 10vh;
+    width: 150px;
+    /* background-color: black; */
+    color: white;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border-radius: 20px;
+    cursor: pointer;
+    user-select: none;
+    font-size: 1.5rem;
+    width: 500;
+}
+
+.button.active {
+    background-color: white;
+    color: black;
+}
+    </style>
+</head>
+<body>
+    <section class="block10">
+        <div class="main">
+            <div class="imgdiv">
+                <div class="image">
+                    <div class="img">
+                        <img src="../img/bus.webp" alt="">
+                    </div>
+                    <div class="text">
+                        
+                        <h2>Your DailyOn-the-<br>go Driver</h2>
+                        <p>Feel the world go numb aroundyou with a simple tap. The moment you activate ANC on your SuperPods Halo, the ambient noise is turned down, captivating you in a bubble of active listening. Enjoy your “Me Time” uninterruptedly.</p>
+                    </div>
+                </div>
+                <div class="image">
+                    <div class="img">
+                        <img src="../img/cafe.webp" alt="">
+                        
+                    </div>
+                    <div class="text">
+                        <h2>Sip Conversations
+                            <br>Not Noise</h2>
+                        <p>Curated for Dynamic Noise Environments, SuperPods Halo is a perfect driver for your daily commute. As the noise frequency in your environment changes, the frequency range capabilities are also adjusted quickly.</p>
+                    </div>
+                </div>
+                <div class="image">
+                    <div class="img">
+                        <img src="../img/metro.webp" alt="">
+                        
+                    </div>
+                    <div class="text">
+                        <h2>Reduce the Rumble <br>Around You</h2>
+                        <p>Cut off from the chaos of a bustling metro ride with a simple tap. The ANC on SuperPods Halo transports you to a dimension of uninterrupted 'Me time'. Hear the world go numb around you.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="sub">
+                <div class="button" onclick="showSpecificImage(0)">Bus</div>
+                <div class="button" onclick="showSpecificImage(1)">Cafe</div>
+                <div class="button" onclick="showSpecificImage(2)">Metro</div>
+            </div>
+        </div>
+        
+    </section>
+    <script>
+       const imgDiv = document.querySelector('.imgdiv');
+        const images = document.querySelectorAll('.imgdiv .image');
+        const buttons = document.querySelectorAll('.button');
+
+        function showImage(index) {
+            const offset = -index * 100;
+            imgDiv.style.transform = `translateX(${offset}%)`;
+        }
+
+        function showSpecificImage(imageIndex) {
+            showImage(imageIndex);
+            buttons.forEach((button, idx) => {
+                if (idx === imageIndex) {
+                    button.classList.add('active');
+                } else {
+                    button.classList.remove('active');
+                }
+            });
+        }
+
+        // Initialize the carousel
+        showSpecificImage(0);
+    </script>
+</body>
+</html>

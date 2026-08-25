@@ -1,0 +1,64 @@
+@import url("ztfonts.css");
+.close-thrive-pop {background: url('../images/pages-sprite@2x.png') no-repeat;background-size:1000px 500px;}
+#zref-btn {z-index: 999;display:block!important;position:fixed;transform: rotate(90deg);padding:10px 20px;background:#00ca82;right:-47px;bottom:30%;cursor:pointer;color:#fff;border-radius:0 0 2px 2px;font-size:16px;letter-spacing:.5px;font-family: proxima_novasemibold;-webkit-animation: contactViewSlide .3s ease;animation: contactViewSlide .5s ease;}
+@keyframes contactViewSlide {
+	0%{ opacity: 0; transform: rotate(90deg) translate3d(0, -40px, 0px);}
+	100%{ opacity: 1; transform: rotate(90deg) translate3d(0, 0px, 0px);}
+}
+/*#zoho_thrive_widget {position: absolute;width: 100%;height: 100%;top: 0;left: 0;}*/
+#zoho_thrive_widget.ui-type-widget {position:fixed;width: 100%;height: 100%;background: rgba(0,0,0,.6);visibility: hidden;opacity: 0;z-index: 9999;top: 0;left: 0;}
+#zoho_thrive_widget.show.ui-type-widget {visibility: visible;opacity: 1;transition: all .3s ease}
+#zoho_thrive_widget.ui-type-widget #thrive-widget-iframe {transform: translate3d(0px, 10px, 0px);transition: all .3s;min-width: 400px;height: 500px;border-radius: 5px;width: auto;margin: auto;left: 0;bottom: 0;top: 0;position: absolute;right: 0;}
+#zoho_thrive_widget.show.ui-type-widget #thrive-widget-iframe {transform: translate3d(0px, 0, 0px);}
+#thrive-widget-iframe {position: relative;border: none;}
+.close-thrive-pop {position: absolute;top: 0;bottom: 460px; left: 440px; right: 0;margin: auto;height: 15px;width: 15px;background-position: -64px -131px;cursor: pointer;}
+.ui-container #thrive-widget-iframe {display: block!important}
+.ui-type-widget #thrive-widget-iframe {height: 550!important}
+.mobile-close-button:after, .modal-close-btn:before, .widget-wrapper.show-widget .modal-close-btn:after {background: url('../images/widget-sprite@2x.png') no-repeat;background-size: 500px 250px;}
+
+#zoho_thrive_widget {position: relative;z-index: 9999;/*position: fixed; right: 0;bottom: 0; margin: 40px*/}
+.modal-close-btn {background: #548cff;border-radius: 30px;color: #fff;position: relative;cursor: pointer;transition: all .3s ease;padding: 15px 30px;min-width: 60px;height: 60px;box-sizing: border-box;opacity: 0;visibility: hidden;transform: scale(.7);}
+.modal-close-btn.with-text {min-width: 100px}
+[widget-align="left"] .modal-close-btn {float: left}
+[widget-align="right"] .modal-close-btn {float: right}
+.modal-close-btn.active {opacity: 1;visibility: visible;transform: scale(1);}
+.widget-wrapper.show-widget .modal-close-btn {width: 60px!important;min-width: 0}
+.modal-close-btn span {display: block;user-select: none;position: relative;padding: 0 0 0 28px;line-height: 31px;font-size: 14px!important;}
+.modal-close-btn:before {content: '';position: absolute;height: 26px;width: 26px;background-position: -208px -33px;top: 0;bottom: 0;margin: auto;left: 0;right: 0;}
+.modal-close-btn.with-text::before {left: 25px; right: auto }
+.widget-wrapper.show-widget .modal-close-btn span, .widget-wrapper.show-widget .modal-close-btn:before {opacity: 0;}
+.widget-wrapper.show-widget .modal-close-btn:after {content: '';position: absolute;height: 15px;width: 15px;top: 0;bottom: 0;margin: auto;background-position: -14px -19px;left: 0;right: 0;background-position: -154px -34px;transition: all .3s ease;}
+/* WIDGET BUILDER */
+.widget-container {margin-top: 70px;}
+.widget-wrapper {font-family:"Lato",'Open Sans',sans-serif!important;position: fixed;bottom: 0;margin: 20px;display: flex; flex-wrap: nowrap; flex-direction: column; justify-content: flex-end;}
+[widget-align="left"].widget-wrapper {left: 0;align-items: flex-start;}
+[widget-align="right"].widget-wrapper {right: 0;align-items: flex-end;}
+.widget-frame {border-radius: 25px;border: 5px solid #fff;box-shadow: rgb(17 12 46 / 10%) 0px 20px 100px 0px;position: relative;height: 550px;z-index: 1;overflow: hidden;margin-bottom: 20px;opacity: 0;visibility: hidden;transform: translateY(20px);transition: all .3s ease;display: none;width: 350px}
+.widget-wrapper.show-widget .widget-frame {opacity: 1;visibility: visible;transform: translateY(0);display: block;-webkit-animation: showPop .3s ease;animation: showPop .5s ease;}
+@keyframes showPop {
+	0%{ opacity: 0; transform: translateY(20px);}
+	100%{ opacity: 1; transform: translateY(0);}
+}
+
+#zoho_thrive_cookie_popup {background-color: #ffffff;position: fixed;font-size: 14px;width: 70vw;max-width: 42.85em;box-shadow: rgba(17, 12, 46, 0.15) 0px 20px 50px 0px;line-height: 1.8em;padding: 40px;border-radius: 10px;z-index: 9999;font-family: 'Lato';opacity: 0;visibility: hidden; right: 0;bottom: 0;margin: 30px;transition: all .3s ease;display: none;opacity: 0;transform: translateX(20px);-webkit-font-smoothing: antialiased;-moz-osx-font-smoothing: grayscale;text-rendering: optimizeLegibility;}
+.anchor-text {color: #1a0dab;cursor: pointer;text-decoration: none}
+.thrive_popup_div {margin-bottom: 20px;text-align: center;line-height: 20px;color: #555866}
+.thrive_popup_btn {text-align: center;}
+#zoho_thrive_cookie_popup button {border: none;color: #ffffff;font-size: 15px;padding: 0.5em 1em;position: relative;margin: 0px 10px 0 0;border-radius: 5px;cursor: pointer}
+#zoho_thrive_cookie_popup.show {-webkit-animation: slideCookiePop .3s ease;animation: slideCookiePop .5s ease;visibility: visible;opacity: 1;display: block;transform: translateX(0);}
+#zoho_thrive_cookie_popup.hide {opacity: 0;visibility: hidden;}
+@keyframes slideCookiePop {
+	0%{ opacity: 0; transform: translateX(20px);}
+	100%{ opacity: 1; transform: translateX(0);}
+}
+#acceptZTCookie {background-color: #5369dd;}
+#rejectZTCookie {background-color: #55606e;}
+
+.mobile-close-button { background: #929292; height: 45px; width: 45px; position: fixed; top: 8px; left: 0; right: 0; margin: auto; border-radius: 50%;display: none;cursor: pointer }
+.mobile-close-button:after {content: ''; position: absolute; height: 15px; width: 15px; background-position: -154px -34px; left: 0; right: 0; top: 0; bottom: 0; margin: auto;}
+
+@media only screen and  (max-width: 550px) {
+    .widget-wrapper.show-widget:before {content: '';position: fixed;background: rgba(0, 0, 0, .6); transition: all .3s ease;height: 100%; width: 100%;left: 0;bottom: 0}  
+    .widget-frame {height: calc(100% - 60px);width: 100%;left: 0;box-sizing: border-box;position: fixed;bottom: 0;border-radius: 20px 20px 0 0;margin-bottom: 0}
+    .widget-wrapper.show-widget .mobile-close-button {display: block;}
+}
